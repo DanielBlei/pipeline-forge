@@ -1,0 +1,9 @@
+apiVersion: core.pipeline-forge.io/v1alpha1
+kind: Staging
+metadata:
+  labels:
+    app.kubernetes.io/name: pipeline-forge
+    app.kubernetes.io/managed-by: kustomize
+  name: staging-sample
+spec:
+  # TODO(user): Add fields here

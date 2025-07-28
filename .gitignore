@@ -1,0 +1,103 @@
+# ========================================
+# Binaries and Build Artifacts
+# ========================================
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go build output
+bin/
+_build/
+_build/*
+
+# Coverage files
+coverage.*
+*.coverprofile
+*.cov
+
+# Go module & workspace
+go.work
+go.work.sum
+
+# ========================================
+# Kubebuilder / Controller Tools
+# ========================================
+# Generated manifests (can be regenerated)
+config/crd/bases/*
+config/rbac/*
+config/webhook/*
+# Skip ignoring manually edited patches or templates
+!config/**/*.patch
+!config/**/*.tmpl
+
+# Tool-specific build artifacts
+controller-gen
+kustomize
+
+# Skip ignoring vendored generated files
+!vendor/**/zz_generated.*
+
+# Avoid ignoring your actual CRDs
+!config/crd/bases/*.yaml
+
+# ========================================
+# Python Files and Environments
+# ========================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg-info/
+*.eggs/
+*.log
+
+# Virtual environments
+.env/
+.venv/
+venv/
+env/
+
+# Python notebooks
+*.ipynb
+
+# ========================================
+# Editor, OS, and IDE Artifacts
+# ========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.bak
+
+# JetBrains & VSCode specific settings
+*.iml
+*.code-workspace
+
+# ========================================
+# Docker Artifacts
+# ========================================
+Dockerfile.cross
+*.tar
+*.img
+*.container
+
+# ========================================
+# Logs and temporary files
+# ========================================
+*.log
+*.tmp
+tmp/
+logs/
+
+# ========================================
+# Workspace
+# ========================================
+etc/

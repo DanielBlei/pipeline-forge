@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/core.pipeline-forge.io_stagings.yaml
+- bases/core.pipeline-forge.io_triggers.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

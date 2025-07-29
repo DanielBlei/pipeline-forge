@@ -1,0 +1,25 @@
+apiVersion: core.pipeline-forge.io/v1alpha1
+kind: Staging
+metadata:
+  labels:
+    app.kubernetes.io/name: pipeline-forge
+    app.kubernetes.io/managed-by: kustomize
+  name: reference-sample
+  namespace: staging-sample
+spec:
+  description: Sample staging pipeline for data transformation
+  owner: data-team
+  ingest:
+    kind: cronjob
+    name: data-ingestion-job
+    owner: backend-team
+    namespace: default
+
+  transform:
+    project: analytics
+    target: dev
+    image: ghcr.io/dbt-labs/dbt-core:1.7.9
+    owner: analytics-team
+    models:
+      - stg_sample_model
+ 

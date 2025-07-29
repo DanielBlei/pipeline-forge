@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,9 +48,17 @@ type TriggerReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *TriggerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	log := logf.FromContext(ctx)
+	log.Info("Reconcilling Trigger:" + req.Name)
 
-	// TODO(user): your logic here
+	trigger := &corev1alpha1.Trigger{}
+	if err := r.Get(ctx, req.NamespacedName, trigger); err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil // obj doesn't exists, stop here and do not reconcile
+		}
+		log.Error(err, "Unable to retrieve object")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }

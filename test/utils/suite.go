@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package utils
 
 import (
 	"context"
@@ -44,7 +44,7 @@ var (
 	cancel    context.CancelFunc
 	testEnv   *envtest.Environment
 	cfg       *rest.Config
-	k8sClient client.Client
+	K8sClient client.Client
 )
 
 func TestControllers(t *testing.T) {
@@ -80,9 +80,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	K8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
+	Expect(K8sClient).NotTo(BeNil())
 })
 
 var _ = AfterSuite(func() {

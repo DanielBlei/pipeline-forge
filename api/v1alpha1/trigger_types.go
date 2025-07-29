@@ -28,12 +28,6 @@ type GCSTriggerSpec struct {
 
 	// Optional prefix to match files (e.g. "exports/")
 	Prefix string `json:"prefix,omitempty"`
-
-	// Wait until file exists before triggering
-	WaitForFile bool `json:"waitForFile,omitempty"`
-
-	// Max allowed staleness before triggering is skipped
-	Freshness metav1.Duration `json:"freshness,omitempty"`
 }
 
 // PubSubTriggerSpec defines a trigger from a Pub/Sub message
@@ -43,29 +37,33 @@ type PubSubTriggerSpec struct {
 	Topic string `json:"topic"`
 
 	// Optional message filter
+	// +optional
 	MessageFilter *PubSubMessageFilter `json:"messageFilter,omitempty"`
 }
 
 type PubSubMessageFilter struct {
 	// Attribute name to match (e.g. "dataset")
+	// +kubebuilder:validation:Required
 	Attribute string `json:"attribute"`
 
 	// Required match value
+	// +kubebuilder:validation:Required
 	Equals string `json:"equals"`
 }
 
 // BigQueryTriggerSpec defines a trigger based on BQ table freshness
 type BigQueryTriggerSpec struct {
-	// Dataset ID (e.g. "raw_salesforce")
+	// Google Cloud Project
 	// +kubebuilder:validation:Required
-	Dataset string `json:"dataset"`
+	Project string `json:"project_id"`
 
-	// Table ID (e.g. "leads")
+	// BigQuery Dataset ID
 	// +kubebuilder:validation:Required
-	Table string `json:"table"`
+	Dataset string `json:"dataset_id"`
 
-	// Max allowed staleness before triggering is skipped
-	Freshness metav1.Duration `json:"freshness,omitempty"`
+	// BigQueryTable ID (e.g. "leads")
+	// +kubebuilder:validation:Required
+	Table string `json:"table_id"`
 }
 
 // TriggerSpec defines the mechanism for activating a pipeline stage,
@@ -74,7 +72,7 @@ type TriggerSpec struct {
 	// Type determines the trigger mechanism: cron, gcs, pubsub, bigquery, etc.
 	// +kubebuilder:validation:Enum=gcs;pubsub;bigquery
 	// +kubebuilder:validation:Required
-	Type string `json:"type"`
+	Kind string `json:"kind"`
 
 	// +optional
 	GCS *GCSTriggerSpec `json:"gcs,omitempty"`
@@ -88,11 +86,28 @@ type TriggerSpec struct {
 
 // TriggerStatus defines the observed state of Trigger.
 type TriggerStatus struct {
+	// Status is the status of the trigger.
 	Status string `json:"status"`
+
+	// LastCheckedTime is the last time the status was checked.
+	LastCheckedTime metav1.Time `json:"lastCheckedTime,omitempty"`
+
+	// LastCompletedTime is the last time the trigger was completed.
+	LastCompletedTime metav1.Time `json:"lastCompletedTime,omitempty"`
+
+	// Message provides additional information or error messages about the trigger status.
+	Message string `json:"message,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Kind",type=string,JSONPath=`.spec.kind`,description="Type of trigger (gcs, pubsub, bigquery)"
+// +kubebuilder:printcolumn:name="GCS Bucket",type=string,JSONPath=`.spec.gcs.bucket`,description="GCS bucket (if GCS trigger)",priority=1
+// +kubebuilder:printcolumn:name="PubSub Topic",type=string,JSONPath=`.spec.pubsub.topic`,description="PubSub topic (if PubSub trigger)",priority=1
+// +kubebuilder:printcolumn:name="BQ Dataset",type=string,JSONPath=`.spec.bigquery.dataset`,description="BigQuery dataset (if BQ trigger)",priority=1
+// +kubebuilder:printcolumn:name="BQ Table",type=string,JSONPath=`.spec.bigquery.table`,description="BigQuery table (if BQ trigger)",priority=1
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`,description="Current status"
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Trigger is the Schema for the triggers API
 type Trigger struct {

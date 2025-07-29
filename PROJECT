@@ -18,4 +18,13 @@ resources:
   kind: Staging
   path: github.com/DanielBlei/pipeline-forge/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: pipeline-forge.io
+  group: core
+  kind: Trigger
+  path: github.com/DanielBlei/pipeline-forge/api/v1alpha1
+  version: v1alpha1
 version: "3"

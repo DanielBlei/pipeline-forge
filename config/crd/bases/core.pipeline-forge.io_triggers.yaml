@@ -1,0 +1,151 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: triggers.core.pipeline-forge.io
+spec:
+  group: core.pipeline-forge.io
+  names:
+    kind: Trigger
+    listKind: TriggerList
+    plural: triggers
+    singular: trigger
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Type of trigger (gcs, pubsub, bigquery)
+      jsonPath: .spec.kind
+      name: Kind
+      type: string
+    - description: GCS bucket (if GCS trigger)
+      jsonPath: .spec.gcs.bucket
+      name: GCS Bucket
+      priority: 1
+      type: string
+    - description: PubSub topic (if PubSub trigger)
+      jsonPath: .spec.pubsub.topic
+      name: PubSub Topic
+      priority: 1
+      type: string
+    - description: BigQuery dataset (if BQ trigger)
+      jsonPath: .spec.bigquery.dataset
+      name: BQ Dataset
+      priority: 1
+      type: string
+    - description: BigQuery table (if BQ trigger)
+      jsonPath: .spec.bigquery.table
+      name: BQ Table
+      priority: 1
+      type: string
+    - description: Current status
+      jsonPath: .status.status
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Trigger is the Schema for the triggers API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Trigger
+            properties:
+              bigquery:
+                description: BigQueryTriggerSpec defines a trigger based on BQ table
+                  freshness
+                properties:
+                  dataset_id:
+                    description: BigQuery Dataset ID
+                    type: string
+                  project_id:
+                    description: Google Cloud Project
+                    type: string
+                  table_id:
+                    description: BigQueryTable ID (e.g. "leads")
+                    type: string
+                required:
+                - dataset_id
+                - project_id
+                - table_id
+                type: object
+              gcs:
+                description: GCSTriggerSpec defines a trigger based on GCS file drops
+                properties:
+                  bucket:
+                    description: GCS bucket name (without gs:// prefix)
+                    type: string
+                  prefix:
+                    description: Optional prefix to match files (e.g. "exports/")
+                    type: string
+                required:
+                - bucket
+                type: object
+              kind:
+                description: 'Type determines the trigger mechanism: cron, gcs, pubsub,
+                  bigquery, etc.'
+                enum:
+                - gcs
+                - pubsub
+                - bigquery
+                type: string
+              pubsub:
+                description: PubSubTriggerSpec defines a trigger from a Pub/Sub message
+                properties:
+                  messageFilter:
+                    description: Optional message filter
+                    properties:
+                      attribute:
+                        description: Attribute name to match (e.g. "dataset")
+                        type: string
+                      equals:
+                        description: Required match value
+                        type: string
+                    required:
+                    - attribute
+                    - equals
+                    type: object
+                  topic:
+                    description: Pub/Sub topic to subscribe to
+                    type: string
+                required:
+                - topic
+                type: object
+            required:
+            - kind
+            type: object
+          status:
+            description: status defines the observed state of Trigger
+            properties:
+              status:
+                type: string
+            required:
+            - status
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

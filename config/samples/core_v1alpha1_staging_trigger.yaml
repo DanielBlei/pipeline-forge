@@ -1,0 +1,23 @@
+apiVersion: core.pipeline-forge.io/v1alpha1
+kind: Staging
+metadata:
+  labels:
+    app.kubernetes.io/name: pipeline-forge
+    app.kubernetes.io/managed-by: kustomize
+  name: trigger-sample
+  namespace: staging-sample
+spec:
+  description: Sample staging pipeline for data transformation
+  ingest:
+    kind: trigger
+    name: sample-trigger
+    owner: data-team
+  
+  transform:
+    project: analytics
+    target: dev
+    owner: data-engineering
+    models:
+      - stg_sample_model
+    full_refresh: false
+ 

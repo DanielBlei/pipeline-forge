@@ -1,0 +1,15 @@
+apiVersion: core.pipeline-forge.io/v1alpha1
+kind: Trigger
+metadata:
+  labels:
+    app.kubernetes.io/name: pipeline-forge
+    app.kubernetes.io/managed-by: kustomize
+  name: sample-trigger
+  namespace: staging-sample
+spec:
+  kind: pubsub
+  pubsub:
+    topic: sample-topic
+    messageFilter:
+      attribute: some-config
+      equals: some-pattern

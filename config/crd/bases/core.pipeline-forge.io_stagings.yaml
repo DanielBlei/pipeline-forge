@@ -14,7 +14,36 @@ spec:
     singular: staging
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Staging pipeline description
+      jsonPath: .spec.description
+      name: Description
+      type: string
+    - description: Owner of the Staging
+      jsonPath: .spec.owner
+      name: Owner
+      priority: 1
+      type: string
+    - description: Ingest type (cronjob, job, trigger)
+      jsonPath: .spec.ingest.kind
+      name: Ingest Kind
+      type: string
+    - description: Name of the ingest resource
+      jsonPath: .spec.ingest.name
+      name: Ingest Name
+      type: string
+    - description: Current Ingestion Status
+      jsonPath: .status.ingestion.status
+      name: Ingest Status
+      type: string
+    - description: Current Staging Status
+      jsonPath: .status.status
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Staging is the Schema for the stagings API
@@ -43,64 +72,48 @@ spec:
                 description: Optional human-readable description of this staging step
                 type: string
               ingest:
-                description: Ingest defines how the pipeline is initiated (e.g., via
-                  CronJob or Trigger)
+                description: Ingest defines how the pipeline is initiated, either
+                  by referencing a Kubernetes CronJob or Job or by referencing a Trigger
+                  CRD
                 properties:
-                  cronjob_ref:
-                    description: Reference to an existing CronJob resource (used if
-                      mode=reference)
-                    properties:
-                      kind:
-                        description: Kind of the referenced object (usually "CronJob")
-                        enum:
-                        - CronJob
-                        type: string
-                      name:
-                        description: Name of the referenced CronJob
-                        type: string
-                      namespace:
-                        description: |-
-                          Namespace where the referenced CronJob exists.
-                          If omitted, defaults to the namespace of the Staging resource.
-                        type: string
-                    required:
-                    - kind
-                    - name
-                    type: object
-                  mode:
+                  kind:
                     description: 'Mode determines how this stage is triggered: by
                       a CronJob reference or a Trigger CRD'
                     enum:
-                    - reference
+                    - cronjob
+                    - job
                     - trigger
+                    type: string
+                  name:
+                    description: Reference to an existing CronJob resource (used if
+                      mode=reference)
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace where the resource is defined.
+                      If omitted, defaults to the namespace of the Staging resource.
                     type: string
                   owner:
                     description: Owner indicates who owns or maintains this ingestion
                       stage (optional metadata)
                     type: string
-                  trigger:
-                    description: Reference to a Trigger resource (used if mode=trigger)
-                    properties:
-                      name:
-                        description: Name of the Trigger resource (required)
-                        type: string
-                      namespace:
-                        description: |-
-                          Namespace where the Trigger resource is defined.
-                          If omitted, defaults to the namespace of the Staging resource.
-                        type: string
-                    required:
-                    - name
-                    type: object
                 required:
-                - mode
+                - kind
+                - name
                 type: object
+              owner:
+                description: Optional owner of the StagingSpec (distinct from the
+                  owner of the ingest or transform stages)
+                type: string
               transform:
                 description: Transform defines the dbt-based transformation logic
                 properties:
                   full_refresh:
                     description: Whether to run dbt with --full-refresh
                     type: boolean
+                  image:
+                    description: Image to run the Transform
+                    type: string
                   models:
                     description: List of dbt models to execute
                     items:
@@ -117,6 +130,7 @@ spec:
                     description: dbt target profile to use (e.g. "dev", "prod")
                     type: string
                 required:
+                - image
                 - models
                 - project
                 - target
@@ -128,10 +142,115 @@ spec:
           status:
             description: Status defines the observed state of Staging
             properties:
+              conditions:
+                description: Conditions is a list of status conditions for the Staging
+                  resource.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              ingest:
+                description: Ingest is the status of the ingestion step.
+                properties:
+                  Status:
+                    description: The status of the associated staging obj (e.g., Complete,
+                      Running, Failed, Pending, Unknow).
+                    type: string
+                  lastCheckedTime:
+                    description: LastCheckedTime is the last time the status was checked.
+                    format: date-time
+                    type: string
+                  lastCompletedTime:
+                    description: LastCompletedTime is the last time the ingestion
+                      CronJob completed.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message provides additional information or error
+                      messages about the ingestion status.
+                    type: string
+                type: object
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  by the controller.
+                format: int64
+                type: integer
               status:
+                description: Status is the status of the Staging (e.g., Deployed,
+                  Failed, Pending, Running).
                 type: string
-            required:
-            - status
+              transform:
+                description: Transform is the status of the transformation step.
+                properties:
+                  Status:
+                    description: The status of the associated staging obj (e.g., Complete,
+                      Running, Failed, Pending, Unknow).
+                    type: string
+                  lastCheckedTime:
+                    description: LastCheckedTime is the last time the status was checked.
+                    format: date-time
+                    type: string
+                  lastCompletedTime:
+                    description: LastCompletedTime is the last time the ingestion
+                      CronJob completed.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message provides additional information or error
+                      messages about the ingestion status.
+                    type: string
+                type: object
             type: object
         required:
         - spec

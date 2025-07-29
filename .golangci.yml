@@ -36,6 +36,10 @@ linters:
           - dupl
           - lll
         path: internal/*
+      - linters:
+          - staticcheck
+          - unused
+        path: test/utils/suite.go
     paths:
       - third_party$
       - builtin$

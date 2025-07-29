@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/DanielBlei/pipeline-forge/api/v1alpha1"
+	"github.com/DanielBlei/pipeline-forge/test/utils"
 )
 
 var _ = Describe("Staging Controller", func() {
@@ -44,7 +45,7 @@ var _ = Describe("Staging Controller", func() {
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind Staging")
-			err := k8sClient.Get(ctx, typeNamespacedName, staging)
+			err := utils.K8sClient.Get(ctx, typeNamespacedName, staging)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &corev1alpha1.Staging{
 					ObjectMeta: metav1.ObjectMeta{
@@ -67,24 +68,24 @@ var _ = Describe("Staging Controller", func() {
 						},
 					},
 				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+				Expect(utils.K8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &corev1alpha1.Staging{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			err := utils.K8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Cleanup the specific resource instance Staging")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			Expect(utils.K8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &StagingReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client: utils.K8sClient,
+				Scheme: utils.K8sClient.Scheme(),
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{

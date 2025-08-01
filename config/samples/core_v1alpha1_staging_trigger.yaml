@@ -8,16 +8,16 @@ metadata:
   namespace: staging-sample
 spec:
   description: Sample staging pipeline for data transformation
-  owner: data-team
   ingest:
-    kind: trigger
-    name: sample-trigger
-  
+    mode: trigger
+    owner: data-team
+    trigger:
+      name: sample-trigger
+
   transform:
     project: analytics
     target: dev
-    image: ghcr.io/dbt-labs/dbt-core:1.7.9
-    owner: analytics-team
+    owner: data-engineering
     models:
       - stg_sample_model
     full_refresh: false

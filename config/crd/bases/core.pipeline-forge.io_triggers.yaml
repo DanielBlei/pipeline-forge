@@ -14,39 +14,7 @@ spec:
     singular: trigger
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - description: Type of trigger (gcs, pubsub, bigquery)
-      jsonPath: .spec.kind
-      name: Kind
-      type: string
-    - description: GCS bucket (if GCS trigger)
-      jsonPath: .spec.gcs.bucket
-      name: GCS Bucket
-      priority: 1
-      type: string
-    - description: PubSub topic (if PubSub trigger)
-      jsonPath: .spec.pubsub.topic
-      name: PubSub Topic
-      priority: 1
-      type: string
-    - description: BigQuery dataset (if BQ trigger)
-      jsonPath: .spec.bigquery.dataset
-      name: BQ Dataset
-      priority: 1
-      type: string
-    - description: BigQuery table (if BQ trigger)
-      jsonPath: .spec.bigquery.table
-      name: BQ Table
-      priority: 1
-      type: string
-    - description: Current status
-      jsonPath: .status.status
-      name: Status
-      type: string
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Trigger is the Schema for the triggers API
@@ -75,19 +43,18 @@ spec:
                 description: BigQueryTriggerSpec defines a trigger based on BQ table
                   freshness
                 properties:
-                  dataset_id:
-                    description: BigQuery Dataset ID
+                  dataset:
+                    description: Dataset ID (e.g. "raw_salesforce")
                     type: string
-                  project_id:
-                    description: Google Cloud Project
+                  freshness:
+                    description: Max allowed staleness before triggering is skipped
                     type: string
-                  table_id:
-                    description: BigQueryTable ID (e.g. "leads")
+                  table:
+                    description: Table ID (e.g. "leads")
                     type: string
                 required:
-                - dataset_id
-                - project_id
-                - table_id
+                - dataset
+                - table
                 type: object
               gcs:
                 description: GCSTriggerSpec defines a trigger based on GCS file drops
@@ -95,20 +62,18 @@ spec:
                   bucket:
                     description: GCS bucket name (without gs:// prefix)
                     type: string
+                  freshness:
+                    description: Max allowed staleness before triggering is skipped
+                    type: string
                   prefix:
                     description: Optional prefix to match files (e.g. "exports/")
                     type: string
+                  waitForFile:
+                    description: Wait until file exists before triggering
+                    type: boolean
                 required:
                 - bucket
                 type: object
-              kind:
-                description: 'Type determines the trigger mechanism: cron, gcs, pubsub,
-                  bigquery, etc.'
-                enum:
-                - gcs
-                - pubsub
-                - bigquery
-                type: string
               pubsub:
                 description: PubSubTriggerSpec defines a trigger from a Pub/Sub message
                 properties:
@@ -131,8 +96,16 @@ spec:
                 required:
                 - topic
                 type: object
+              type:
+                description: 'Type determines the trigger mechanism: cron, gcs, pubsub,
+                  bigquery, etc.'
+                enum:
+                - gcs
+                - pubsub
+                - bigquery
+                type: string
             required:
-            - kind
+            - type
             type: object
           status:
             description: status defines the observed state of Trigger

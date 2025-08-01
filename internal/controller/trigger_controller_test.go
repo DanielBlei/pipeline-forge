@@ -51,14 +51,7 @@ var _ = Describe("Trigger Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					Spec: corev1alpha1.TriggerSpec{
-						Kind: "bigquery",
-						BigQuery: &corev1alpha1.BigQueryTriggerSpec{
-							Project: "gcp-project",
-							Dataset: "dataset_id",
-							Table:   "table_id",
-						},
-					},
+					// TODO(user): Specify other spec details if needed.
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}

@@ -14,32 +14,7 @@ spec:
     singular: staging
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - description: Staging pipeline description
-      jsonPath: .spec.description
-      name: Description
-      type: string
-    - description: Owner of the Staging
-      jsonPath: .spec.owner
-      name: Owner
-      priority: 1
-      type: string
-    - description: Ingest type (cronjob, job, trigger)
-      jsonPath: .spec.ingest.kind
-      name: Ingest Kind
-      type: string
-    - description: Name of the ingest resource
-      jsonPath: .spec.ingest.name
-      name: Ingest Name
-      type: string
-    - description: Current Staging Status
-      jsonPath: .status.status
-      name: Status
-      type: string
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Staging is the Schema for the stagings API
@@ -68,48 +43,64 @@ spec:
                 description: Optional human-readable description of this staging step
                 type: string
               ingest:
-                description: Ingest defines how the pipeline is initiated, either
-                  by referencing a Kubernetes CronJob or Job or by referencing a Trigger
-                  CRD
+                description: Ingest defines how the pipeline is initiated (e.g., via
+                  CronJob or Trigger)
                 properties:
-                  kind:
+                  cronjob_ref:
+                    description: Reference to an existing CronJob resource (used if
+                      mode=reference)
+                    properties:
+                      kind:
+                        description: Kind of the referenced object (usually "CronJob")
+                        enum:
+                        - CronJob
+                        type: string
+                      name:
+                        description: Name of the referenced CronJob
+                        type: string
+                      namespace:
+                        description: |-
+                          Namespace where the referenced CronJob exists.
+                          If omitted, defaults to the namespace of the Staging resource.
+                        type: string
+                    required:
+                    - kind
+                    - name
+                    type: object
+                  mode:
                     description: 'Mode determines how this stage is triggered: by
                       a CronJob reference or a Trigger CRD'
                     enum:
-                    - cronjob
-                    - job
+                    - reference
                     - trigger
-                    type: string
-                  name:
-                    description: Reference to an existing CronJob resource (used if
-                      mode=reference)
-                    type: string
-                  namespace:
-                    description: |-
-                      Namespace where the resource is defined.
-                      If omitted, defaults to the namespace of the Staging resource.
                     type: string
                   owner:
                     description: Owner indicates who owns or maintains this ingestion
                       stage (optional metadata)
                     type: string
+                  trigger:
+                    description: Reference to a Trigger resource (used if mode=trigger)
+                    properties:
+                      name:
+                        description: Name of the Trigger resource (required)
+                        type: string
+                      namespace:
+                        description: |-
+                          Namespace where the Trigger resource is defined.
+                          If omitted, defaults to the namespace of the Staging resource.
+                        type: string
+                    required:
+                    - name
+                    type: object
                 required:
-                - kind
-                - name
+                - mode
                 type: object
-              owner:
-                description: Optional owner of the StagingSpec (distinct from the
-                  owner of the ingest or transform stages)
-                type: string
               transform:
                 description: Transform defines the dbt-based transformation logic
                 properties:
                   full_refresh:
                     description: Whether to run dbt with --full-refresh
                     type: boolean
-                  image:
-                    description: Image to run the Transform
-                    type: string
                   models:
                     description: List of dbt models to execute
                     items:
@@ -126,7 +117,6 @@ spec:
                     description: dbt target profile to use (e.g. "dev", "prod")
                     type: string
                 required:
-                - image
                 - models
                 - project
                 - target

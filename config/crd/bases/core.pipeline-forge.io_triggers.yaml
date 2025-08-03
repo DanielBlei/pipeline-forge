@@ -11,35 +11,27 @@ spec:
     kind: Trigger
     listKind: TriggerList
     plural: triggers
+    shortNames:
+    - trg
     singular: trigger
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Type of trigger (gcs, pubsub, bigquery)
-      jsonPath: .spec.kind
-      name: Kind
-      type: string
-    - description: GCS bucket (if GCS trigger)
-      jsonPath: .spec.gcs.bucket
-      name: GCS Bucket
+    - description: Trigger type
+      jsonPath: .spec.type
+      name: Type
       priority: 1
       type: string
-    - description: PubSub topic (if PubSub trigger)
-      jsonPath: .spec.pubsub.topic
-      name: PubSub Topic
+    - description: Owner
+      jsonPath: .spec.owner
+      name: Owner
       priority: 1
       type: string
-    - description: BigQuery dataset (if BQ trigger)
-      jsonPath: .spec.bigquery.dataset
-      name: BQ Dataset
-      priority: 1
-      type: string
-    - description: BigQuery table (if BQ trigger)
-      jsonPath: .spec.bigquery.table
-      name: BQ Table
-      priority: 1
-      type: string
-    - description: Current status
+    - description: Last triggered time
+      jsonPath: .status.lastTriggeredTime
+      name: Last Triggered
+      type: date
+    - description: Status message
       jsonPath: .status.status
       name: Status
       type: string
@@ -71,9 +63,17 @@ spec:
           spec:
             description: spec defines the desired state of Trigger
             properties:
+              args:
+                description: |-
+                  Args are the arguments passed to the trigger container.
+                  Useful for dynamic or parameterized behavior.
+                items:
+                  type: string
+                type: array
               bigquery:
-                description: BigQueryTriggerSpec defines a trigger based on BQ table
-                  freshness
+                description: |-
+                  BigQuery contains configuration for a BigQuery-based trigger.
+                  Only set if Type is "bigquery".
                 properties:
                   dataset_id:
                     description: BigQuery Dataset ID
@@ -89,8 +89,28 @@ spec:
                 - project_id
                 - table_id
                 type: object
+              cadence:
+                description: |-
+                  Cadence is a cron-style schedule for when the trigger should check for new data/events.
+
+                  For example: "*/5 * * * *" (every 5 minutes)
+                  You must configure your controller to parse this correctly using robfig/cron or equivalent.
+                type: string
+              cooldown:
+                description: |-
+                  Cooldown defines the minimum time that must pass between successive runs.
+                  Prevents rapid re-triggering.
+                  Example: "5m", "1h"
+                pattern: ^\d+(s|m|h|d)$
+                type: string
+              description:
+                description: Description is an optional human-readable description
+                  of the trigger.
+                type: string
               gcs:
-                description: GCSTriggerSpec defines a trigger based on GCS file drops
+                description: |-
+                  GCS contains configuration for a GCS-based trigger.
+                  Only set if Type is "gcs".
                 properties:
                   bucket:
                     description: GCS bucket name (without gs:// prefix)
@@ -101,16 +121,28 @@ spec:
                 required:
                 - bucket
                 type: object
-              kind:
-                description: 'Type determines the trigger mechanism: cron, gcs, pubsub,
-                  bigquery, etc.'
-                enum:
-                - gcs
-                - pubsub
-                - bigquery
+              image:
+                description: |-
+                  Image is the container image used to run the trigger check.
+                  This image is launched in a Kubernetes Job created by the Trigger controller.
+                type: string
+              maxRetry:
+                description: |-
+                  MaxRetry defines the maximum number of times to retry the transform step on failure.
+                  If not set, defaults to 0 (no retries).
+                format: int32
+                type: integer
+              name:
+                description: Name of the trigger resource.
+                type: string
+              owner:
+                description: Owner is an optional field indicating the team or user
+                  responsible for this trigger.
                 type: string
               pubsub:
-                description: PubSubTriggerSpec defines a trigger from a Pub/Sub message
+                description: |-
+                  PubSub contains configuration for a Pub/Sub-based trigger.
+                  Only set if Type is "pubsub".
                 properties:
                   messageFilter:
                     description: Optional message filter
@@ -131,30 +163,89 @@ spec:
                 required:
                 - topic
                 type: object
+              resources:
+                description: Resources defines CPU and memory requests/limits for
+                  the trigger Job container.
+                properties:
+                  claims:
+                    description: |-
+                      Claims lists the names of resources, defined in spec.resourceClaims,
+                      that are used by this container.
+
+                      This is an alpha field and requires enabling the
+                      DynamicResourceAllocation feature gate.
+
+                      This field is immutable. It can only be set for containers.
+                    items:
+                      description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                      properties:
+                        name:
+                          description: |-
+                            Name must match the name of one entry in pod.spec.resourceClaims of
+                            the Pod where this field is used. It makes that resource available
+                            inside a container.
+                          type: string
+                        request:
+                          description: |-
+                            Request is the name chosen for a request in the referenced claim.
+                            If empty, everything from the claim is made available, otherwise
+                            only the result of this request.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
+                  limits:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: |-
+                      Limits describes the maximum amount of compute resources allowed.
+                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                    type: object
+                  requests:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: |-
+                      Requests describes the minimum amount of compute resources required.
+                      If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                      otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                    type: object
+                type: object
+              runOnce:
+                description: |-
+                  RunOnce, if true, means this trigger should only run once.
+                  Controller skips execution if status.lastTriggeredTime is set.
+                type: boolean
+              type:
+                description: |-
+                  Type specifies the kind of event that will activate this trigger.
+                  Supported values: "gcs", "pubsub", "bigquery".
+                  This field determines which trigger details must be provided.
+                enum:
+                - gcs
+                - pubsub
+                - bigquery
+                type: string
             required:
-            - kind
+            - image
+            - name
+            - type
             type: object
           status:
             description: status defines the observed state of Trigger
-            properties:
-              lastCheckedTime:
-                description: LastCheckedTime is the last time the status was checked.
-                format: date-time
-                type: string
-              lastCompletedTime:
-                description: LastCompletedTime is the last time the trigger was completed.
-                format: date-time
-                type: string
-              message:
-                description: Message provides additional information or error messages
-                  about the trigger status.
-                type: string
-              status:
-                description: Status is the status of the trigger.
-                type: string
-            required:
-            - status
-            type: object
+            type: string
         required:
         - spec
         type: object

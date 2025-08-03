@@ -24,8 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	corev1alpha1 "github.com/DanielBlei/pipeline-forge/api/v1alpha1"
-	"github.com/DanielBlei/pipeline-forge/test/utils"
+	v1alpha1 "github.com/DanielBlei/pipeline-forge/api/v1alpha1"
 )
 
 var _ = Describe("Status Update", func() {
@@ -41,52 +40,52 @@ var _ = Describe("Status Update", func() {
 
 		BeforeEach(func() {
 			By("creating the custom resource for testing status updates")
-			resource := &corev1alpha1.Trigger{
+			resource := &v1alpha1.Trigger{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      resourceName,
 					Namespace: "default",
 				},
-				Spec: corev1alpha1.TriggerSpec{
-					Kind: "bigquery",
-					BigQuery: &corev1alpha1.BigQueryTriggerSpec{
+				Spec: v1alpha1.TriggerSpec{
+					Type: "bigquery",
+					BigQuery: &v1alpha1.BigQueryTriggerSpec{
 						Project: "gcp-project",
 						Dataset: "dataset_id",
 						Table:   "table_id",
 					},
 				},
 			}
-			Expect(utils.K8sClient.Create(ctx, resource)).To(Succeed())
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 		})
 
 		AfterEach(func() {
 			By("Cleanup the test resource")
-			resource := &corev1alpha1.Trigger{}
-			err := utils.K8sClient.Get(ctx, typeNamespacedName, resource)
+			resource := &v1alpha1.Trigger{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(utils.K8sClient.Delete(ctx, resource)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 
 		It("should successfully update the status", func() {
 			By("Getting the created resource")
-			resource := &corev1alpha1.Trigger{}
-			err := utils.K8sClient.Get(ctx, typeNamespacedName, resource)
+			resource := &v1alpha1.Trigger{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating a deep copy for the patch")
 			objDeepCopy := resource.DeepCopy()
 
 			By("Updating the status")
-			resource.Status.Status = "Completed"
+			resource.Status = v1alpha1.StatusCompleted
 
 			By("Calling UpdateStatus function")
-			err = UpdateStatus(ctx, utils.K8sClient, resource, objDeepCopy)
+			err = UpdateStatus(ctx, k8sClient, resource, objDeepCopy)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying the status was updated")
-			updatedObj := &corev1alpha1.Trigger{}
-			err = utils.K8sClient.Get(ctx, typeNamespacedName, updatedObj)
+			updatedObj := &v1alpha1.Trigger{}
+			err = k8sClient.Get(ctx, typeNamespacedName, updatedObj)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(updatedObj.Status.Status).To(Equal("Completed"))
+			Expect(updatedObj.Status).To(Equal(v1alpha1.StatusCompleted))
 		})
 	})
 })

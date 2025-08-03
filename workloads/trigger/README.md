@@ -1,0 +1,3 @@
+# Trigger Workload
+
+This directory will contain the code and Dockerfile for the Pipeline Forge Trigger workload.

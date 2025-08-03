@@ -1,24 +1,66 @@
 apiVersion: core.pipeline-forge.io/v1alpha1
 kind: Staging
 metadata:
+  name: trigger-sample
+  namespace: staging-sample
   labels:
     app.kubernetes.io/name: pipeline-forge
     app.kubernetes.io/managed-by: kustomize
-  name: trigger-sample
-  namespace: staging-sample
 spec:
-  description: Sample staging pipeline for data transformation
+  # Optional human-readable description of this staging pipeline
+  description: |
+    Sample staging pipeline for data transformation triggered by external events
+    (e.g., GCS file upload, Pub/Sub message, BigQuery update) via a Trigger CRD.
+  # Optional owner metadata for visibility
+  owner: analytics-platform
+
   ingest:
-    mode: trigger
+    # The 'name' field must match the name of the existing Trigger resource
+    # that this Staging pipeline will reference or monitor.
+    name: sample-trigger
+    # Namespace of the referenced Trigger CRD (optional; defaults to current namespace)
+    namespace: triggers-ns
+    # Mode can be 'reference' to use an existing Trigger resource,
+    # or 'bootstrap' to create and manage the resource automatically (future implementation)
+    mode: reference
+    # Type = trigger: the controller expects to monitor a custom Trigger CRD
+    # (e.g., one watching GCS, Pub/Sub, BigQuery)
+    type: trigger
+    # Optional team or service responsible for this ingest source
     owner: data-team
-    trigger:
-      name: sample-trigger
+    # Optional: you could also set suspend: true here to pause ingestion logic
+    suspend: false
 
   transform:
+    # A friendly name for this transform step
+    name: transform-on-trigger
+    # BigQuery project
     project: analytics
+    # Environment target (e.g., dev or prod)
     target: dev
-    owner: data-engineering
+    # The container image to run the transformation (typically a dbt runner)
+    image: ghcr.io/org/dbt-core:1.7.9
+    # Optional args passed to the transform Job (override `models` and container entrypoint)
+    args:
+      - "run"
+      - "--select"
+      - "stg_sample_model"
+    # List of models to stage
     models:
       - stg_sample_model
+    # Optional: tune CPU and memory for the transform job
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "512Mi"
+      limits:
+        cpu: "1"
+        memory: "2Gi"
+    # Optional: The engine used for transformation
+    engine: dbt
+    # Optional: Owner of this transform logic (team, project, etc.)
+    owner: data-engineering
+    # Optional: you could also set suspend: true here to pause transform logic
+    suspend: false
+    # Whether to use full-refresh when executing the transform
     full_refresh: false
- 

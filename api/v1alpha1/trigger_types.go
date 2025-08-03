@@ -17,8 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// ResourceRequirements describes the compute resource requirements.
+type ResourceRequirements = corev1.ResourceRequirements
 
 // GCSTriggerSpec defines a trigger based on GCS file drops
 type GCSTriggerSpec struct {
@@ -37,16 +41,19 @@ type PubSubTriggerSpec struct {
 	Topic string `json:"topic"`
 
 	// Optional message filter
+	//
 	// +optional
 	MessageFilter *PubSubMessageFilter `json:"messageFilter,omitempty"`
 }
 
 type PubSubMessageFilter struct {
 	// Attribute name to match (e.g. "dataset")
+	//
 	// +kubebuilder:validation:Required
 	Attribute string `json:"attribute"`
 
 	// Required match value
+	//
 	// +kubebuilder:validation:Required
 	Equals string `json:"equals"`
 }
@@ -54,59 +61,166 @@ type PubSubMessageFilter struct {
 // BigQueryTriggerSpec defines a trigger based on BQ table freshness
 type BigQueryTriggerSpec struct {
 	// Google Cloud Project
+	//
 	// +kubebuilder:validation:Required
 	Project string `json:"project_id"`
 
 	// BigQuery Dataset ID
+	//
 	// +kubebuilder:validation:Required
 	Dataset string `json:"dataset_id"`
 
 	// BigQueryTable ID (e.g. "leads")
+	//
 	// +kubebuilder:validation:Required
 	Table string `json:"table_id"`
 }
 
-// TriggerSpec defines the mechanism for activating a pipeline stage,
-// either on a schedule or in response to an event (GCS, Pub/Sub, BQ, etc.).
+// TriggerSpec defines the desired state of a Trigger resource.
 type TriggerSpec struct {
-	// Type determines the trigger mechanism: cron, gcs, pubsub, bigquery, etc.
+	// Type specifies the kind of event that will activate this trigger.
+	// Supported values: "gcs", "pubsub", "bigquery".
+	// This field determines which trigger details must be provided.
+	//
 	// +kubebuilder:validation:Enum=gcs;pubsub;bigquery
 	// +kubebuilder:validation:Required
-	Kind string `json:"kind"`
+	Type string `json:"type"`
 
+	// Name of the trigger resource.
+	//
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
+
+	// Description is an optional human-readable description of the trigger.
+	//
+	// +optional
+	Description string `json:"description,omitempty"`
+
+	// Owner is an optional field indicating the team or user responsible for this trigger.
+	//
+	// +optional
+	Owner string `json:"owner,omitempty"`
+
+	// Image is the container image used to run the trigger check.
+	// This image is launched in a Kubernetes Job created by the Trigger controller.
+	//
+	// +kubebuilder:validation:Required
+	Image string `json:"image"`
+
+	// Args are the arguments passed to the trigger container.
+	// Useful for dynamic or parameterized behavior.
+	//
+	// +optional
+	Args []string `json:"args,omitempty"`
+
+	// Resources defines CPU and memory requests/limits for the trigger Job container.
+	//
+	// +optional
+	Resources *ResourceRequirements `json:"resources,omitempty"`
+
+	// Cadence is a cron-style schedule for when the trigger should check for new data/events.
+	//
+	// For example: "*/5 * * * *" (every 5 minutes)
+	// You must configure your controller to parse this correctly using robfig/cron or equivalent.
+	//
+	// +optional
+	Cadence string `json:"cadence,omitempty"`
+
+	// Cooldown defines the minimum time that must pass between successive runs.
+	// Prevents rapid re-triggering.
+	// Example: "5m", "1h"
+	//
+	// +optional
+	// +kubebuilder:validation:Pattern=`^\d+(s|m|h|d)$`
+	Cooldown string `json:"cooldown,omitempty"`
+
+	// RunOnce, if true, means this trigger should only run once.
+	// Controller skips execution if status.lastTriggeredTime is set.
+	//
+	// +optional
+	RunOnce bool `json:"runOnce,omitempty"`
+
+	// GCS contains configuration for a GCS-based trigger.
+	// Only set if Type is "gcs".
+	//
 	// +optional
 	GCS *GCSTriggerSpec `json:"gcs,omitempty"`
 
+	// PubSub contains configuration for a Pub/Sub-based trigger.
+	// Only set if Type is "pubsub".
+	//
 	// +optional
 	PubSub *PubSubTriggerSpec `json:"pubsub,omitempty"`
 
+	// BigQuery contains configuration for a BigQuery-based trigger.
+	// Only set if Type is "bigquery".
+	//
 	// +optional
 	BigQuery *BigQueryTriggerSpec `json:"bigquery,omitempty"`
+
+	// MaxRetry defines the maximum number of times to retry the transform step on failure.
+	// If not set, defaults to 0 (no retries).
+	//
+	// +optional
+	MaxRetry int32 `json:"maxRetry,omitempty"`
 }
 
-// TriggerStatus defines the observed state of Trigger.
+// TriggerStatus defines the observed state of the Trigger resource.
+// +kubebuilder:object:generate=true
 type TriggerStatus struct {
-	// Status is the status of the trigger.
-	Status string `json:"status"`
+	// Status is the status of the Trigger (e.g., Deployed, Failed, Pending, Running).
+	// +kubebuilder:validation:Enum=Pending;Running;Completed;Failed;Suspended;Unknown
+	Status string `json:"status,omitempty"`
 
-	// LastCheckedTime is the last time the status was checked.
-	LastCheckedTime metav1.Time `json:"lastCheckedTime,omitempty"`
+	// Conditions represent the latest available observations of the trigger's state.
+	// Examples: Ready, Failed, CooldownActive
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
-	// LastCompletedTime is the last time the trigger was completed.
-	LastCompletedTime metav1.Time `json:"lastCompletedTime,omitempty"`
-
-	// Message provides additional information or error messages about the trigger status.
+	// Message provides human-readable information about the trigger status or last evaluation.
 	Message string `json:"message,omitempty"`
+
+	// LastTriggeredTime is the last time this trigger successfully resulted in a pipeline activation.
+	LastTriggeredTime *metav1.Time `json:"lastTriggeredTime,omitempty"`
+
+	// LastCheckTime is the last time the controller evaluated whether to trigger.
+	LastCheckTime *metav1.Time `json:"lastCheckTime,omitempty"`
+
+	// CooldownUntil is the next eligible time this trigger can fire, based on Cooldown setting.
+	CooldownUntil *metav1.Time `json:"cooldownUntil,omitempty"`
+
+	// LastRunJobName is the name of the last Kubernetes Job created by this trigger.
+	LastRunJobName string `json:"lastRunJobName,omitempty"`
+
+	// Attempts tracks the number of times this step has been attempted.
+	Attempts int32 `json:"attempts,omitempty"`
+
+	// SuccessfulAttempts tracks the number of successful attempts.
+	SuccessfulAttempts int32 `json:"successfulAttempts,omitempty"`
+
+	// FailedAttempts tracks the number of failed attempts.
+	FailedAttempts int32 `json:"failedAttempts,omitempty"`
+
+	// RetryCount tracks the number of retries for the current attempt.
+	RetryCount int32 `json:"retryCount,omitempty"`
+
+	// MaxRetries defines the maximum number of retries allowed.
+	MaxRetries int32 `json:"maxRetries,omitempty"`
+
+	// LastAttemptTime is the timestamp of the last attempt.
+	LastAttemptTime *metav1.Time `json:"lastAttemptTime,omitempty"`
+
+	// LastFailureTime is the timestamp of the last failure.
+	LastFailureTime *metav1.Time `json:"lastFailureTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Kind",type=string,JSONPath=`.spec.kind`,description="Type of trigger (gcs, pubsub, bigquery)"
-// +kubebuilder:printcolumn:name="GCS Bucket",type=string,JSONPath=`.spec.gcs.bucket`,description="GCS bucket (if GCS trigger)",priority=1
-// +kubebuilder:printcolumn:name="PubSub Topic",type=string,JSONPath=`.spec.pubsub.topic`,description="PubSub topic (if PubSub trigger)",priority=1
-// +kubebuilder:printcolumn:name="BQ Dataset",type=string,JSONPath=`.spec.bigquery.dataset`,description="BigQuery dataset (if BQ trigger)",priority=1
-// +kubebuilder:printcolumn:name="BQ Table",type=string,JSONPath=`.spec.bigquery.table`,description="BigQuery table (if BQ trigger)",priority=1
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`,description="Current status"
+// +kubebuilder:resource:scope=Namespaced,shortName=trg
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`,description="Trigger type",priority=1
+// +kubebuilder:printcolumn:name="Owner",type=string,JSONPath=`.spec.owner`,description="Owner",priority=1
+// +kubebuilder:printcolumn:name="Last Triggered",type=date,JSONPath=`.status.lastTriggeredTime`,description="Last triggered time"
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`,description="Status message"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Trigger is the Schema for the triggers API
@@ -114,16 +228,13 @@ type Trigger struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// metadata is a standard object metadata
-	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty,omitzero"`
 
 	// spec defines the desired state of Trigger
-	// +required
 	Spec TriggerSpec `json:"spec"`
 
 	// status defines the observed state of Trigger
-	// +optional
-	Status TriggerStatus `json:"status,omitempty,omitzero"`
+	Status StatusType `json:"status,omitempty,omitzero"`
 }
 
 // +kubebuilder:object:root=true

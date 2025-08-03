@@ -11,34 +11,33 @@ spec:
     kind: Staging
     listKind: StagingList
     plural: stagings
+    shortNames:
+    - stg
     singular: staging
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Staging pipeline description
-      jsonPath: .spec.description
-      name: Description
+    - description: Overall staging status
+      jsonPath: .status.status
+      name: Status
+      priority: 1
       type: string
-    - description: Owner of the Staging
+    - description: Owner
       jsonPath: .spec.owner
       name: Owner
       priority: 1
       type: string
-    - description: Ingest type (cronjob, job, trigger)
-      jsonPath: .spec.ingest.kind
-      name: Ingest Kind
+    - description: Ingest type
+      jsonPath: .spec.ingest.type
+      name: Ingest
       type: string
-    - description: Name of the ingest resource
-      jsonPath: .spec.ingest.name
-      name: Ingest Name
-      type: string
-    - description: Current Ingestion Status
-      jsonPath: .status.ingestion.status
+    - description: Ingest status
+      jsonPath: .status.ingest.status
       name: Ingest Status
       type: string
-    - description: Current Staging Status
-      jsonPath: .status.status
-      name: Status
+    - description: Transform status
+      jsonPath: .status.transform.status
+      name: Transform Status
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
@@ -76,30 +75,74 @@ spec:
                   by referencing a Kubernetes CronJob or Job or by referencing a Trigger
                   CRD
                 properties:
-                  kind:
-                    description: 'Mode determines how this stage is triggered: by
-                      a CronJob reference or a Trigger CRD'
+                  args:
+                    description: |-
+                      Args specifies the command-line arguments to pass to the container,
+                      overriding the default container command (entrypoint).
+                      If set, these arguments will replace the container's default command.
+                    items:
+                      type: string
+                    type: array
+                  image:
+                    description: |-
+                      Image is the container image used to run the ingest.
+                      This image is launched in a Kubernetes from a Job or Cronjob created by the Staging controller.
+                    type: string
+                  maxRetry:
+                    description: |-
+                      MaxRetry defines the maximum number of times to retry the transform step on failure.
+                      If not set, defaults to 0 (no retries).
+                    format: int32
+                    type: integer
+                  mode:
+                    description: |-
+                      Mode determines whether the ingestion source is a reference to an existing resource,
+                      or should be created and managed by this Staging resource in the future.
+
+                      Accepted values:
+                      - "reference": reference an existing CronJob, Job, or Trigger
+                      - "bootstrap": placeholder for future functionality to create the ingestion job
+                    enum:
+                    - reference
+                    - bootstrap
+                    type: string
+                  name:
+                    description: |-
+                      Name of the ingestion resource.
+                      This must match the Kubernetes or custom resource to be watched.
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace where the ingestion resource is defined.
+                      If omitted, defaults to the namespace of the Staging object.
+                    type: string
+                  owner:
+                    description: Owner identifies the team or user responsible for
+                      this ingestion step.
+                    type: string
+                  suspend:
+                    description: |-
+                      Suspend indicates whether the ingestion action is currently suspended.
+                      If true, the controller will not process or watch the referenced ingestion resource.
+                    type: boolean
+                  type:
+                    description: |-
+                      Type specifies the kind of resource used to signal ingestion readiness.
+
+                      Accepted values:
+                      - "cronjob": watches for successful Job completions from a CronJob
+                      - "job": watches a single-use Kubernetes Job
+                      - "trigger": watches a custom Trigger resource (e.g., based on PubSub, GCS, BigQuery)
                     enum:
                     - cronjob
                     - job
                     - trigger
                     type: string
-                  name:
-                    description: Reference to an existing CronJob resource (used if
-                      mode=reference)
-                    type: string
-                  namespace:
-                    description: |-
-                      Namespace where the resource is defined.
-                      If omitted, defaults to the namespace of the Staging resource.
-                    type: string
-                  owner:
-                    description: Owner indicates who owns or maintains this ingestion
-                      stage (optional metadata)
-                    type: string
                 required:
-                - kind
+                - image
+                - mode
                 - name
+                - type
                 type: object
               owner:
                 description: Optional owner of the StagingSpec (distinct from the
@@ -108,30 +151,131 @@ spec:
               transform:
                 description: Transform defines the dbt-based transformation logic
                 properties:
-                  full_refresh:
-                    description: Whether to run dbt with --full-refresh
-                    type: boolean
-                  image:
-                    description: Image to run the Transform
-                    type: string
-                  models:
-                    description: List of dbt models to execute
+                  args:
+                    description: |-
+                      Args specifies the command-line arguments to pass to the container,
+                      overriding the default container command (entrypoint).
+                      If set, these arguments will replace the container's default command.
                     items:
                       type: string
-                    minItems: 1
                     type: array
+                  engine:
+                    default: dbt
+                    description: |-
+                      Engine defines the transformation engine to use (e.g., "dbt", "spark", "custom").
+                      Defaults to "dbt" if not specified.
+                    enum:
+                    - dbt
+                    - spark
+                    - custom
+                    type: string
+                  full_refresh:
+                    description: |-
+                      Whether to force a full refresh of data (e.g., `dbt run --full-refresh`).
+                      Only applicable to engines that support it (like dbt).
+                    type: boolean
+                  image:
+                    description: |-
+                      Image is the container image used to run the transform.
+                      This image is launched in a Kubernetes Job created by the Staging controller.
+                    type: string
+                  maxRetry:
+                    description: |-
+                      MaxRetry defines the maximum number of times to retry the transform step on failure.
+                      If not set, defaults to 0 (no retries).
+                    format: int32
+                    type: integer
+                  models:
+                    description: |-
+                      Models defines the transformation model names to run.
+                      For dbt, these are model names. For other engines, these could be script names, tasks, etc.
+                    items:
+                      type: string
+                    type: array
+                  name:
+                    description: Name is a reference or descriptive label for this
+                      transform step.
+                    type: string
                   owner:
-                    description: Optional owner metadata for the transform stage
+                    description: Owner identifies the team or individual responsible
+                      for the transformation.
                     type: string
                   project:
-                    description: Name of the dbt project this stage executes
+                    description: Project is the name of the transformation project
+                      (e.g., dbt project name).
                     type: string
+                  resources:
+                    description: Resources defines CPU and memory requests/limits
+                      for the Job container.
+                    properties:
+                      claims:
+                        description: |-
+                          Claims lists the names of resources, defined in spec.resourceClaims,
+                          that are used by this container.
+
+                          This is an alpha field and requires enabling the
+                          DynamicResourceAllocation feature gate.
+
+                          This field is immutable. It can only be set for containers.
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: |-
+                                Name must match the name of one entry in pod.spec.resourceClaims of
+                                the Pod where this field is used. It makes that resource available
+                                inside a container.
+                              type: string
+                            request:
+                              description: |-
+                                Request is the name chosen for a request in the referenced claim.
+                                If empty, everything from the claim is made available, otherwise
+                                only the result of this request.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: |-
+                          Limits describes the maximum amount of compute resources allowed.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: |-
+                          Requests describes the minimum amount of compute resources required.
+                          If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                          otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
+                    type: object
+                  suspend:
+                    description: |-
+                      Suspend indicates whether the Transform action is currently suspended.
+                      If true, the controller will not process the transform step(s)
+                    type: boolean
                   target:
-                    description: dbt target profile to use (e.g. "dev", "prod")
+                    description: Target defines the execution target or environment
+                      profile (e.g., "dev", "prod").
                     type: string
                 required:
                 - image
-                - models
+                - name
                 - project
                 - target
                 type: object
@@ -203,23 +347,59 @@ spec:
               ingest:
                 description: Ingest is the status of the ingestion step.
                 properties:
-                  Status:
-                    description: The status of the associated staging obj (e.g., Complete,
-                      Running, Failed, Pending, Unknow).
+                  attempts:
+                    description: Attempts tracks the number of times this step has
+                      been attempted.
+                    format: int32
+                    type: integer
+                  failedAttempts:
+                    description: FailedAttempts tracks the number of failed attempts.
+                    format: int32
+                    type: integer
+                  lastAttemptTime:
+                    description: LastAttemptTime is the timestamp of the last attempt.
+                    format: date-time
                     type: string
                   lastCheckedTime:
                     description: LastCheckedTime is the last time the status was checked.
                     format: date-time
                     type: string
                   lastCompletedTime:
-                    description: LastCompletedTime is the last time the ingestion
-                      CronJob completed.
+                    description: LastCompletedTime is the last time the step (e.g.,
+                      ingestion CronJob) completed.
                     format: date-time
                     type: string
+                  lastFailureTime:
+                    description: LastFailureTime is the timestamp of the last failure.
+                    format: date-time
+                    type: string
+                  lastRunJobName:
+                    description: LastRunJobName is the name of the last Kubernetes
+                      Job created by this resource.
+                    type: string
+                  maxRetries:
+                    description: MaxRetries defines the maximum number of retries
+                      allowed.
+                    format: int32
+                    type: integer
                   message:
                     description: Message provides additional information or error
-                      messages about the ingestion status.
+                      messages about the step status.
                     type: string
+                  retryCount:
+                    description: RetryCount tracks the number of retries for the current
+                      attempt.
+                    format: int32
+                    type: integer
+                  status:
+                    description: Status of the associated staging object (e.g., Complete,
+                      Running, Failed, Pending, Unknown).
+                    type: string
+                  successfulAttempts:
+                    description: SuccessfulAttempts tracks the number of successful
+                      attempts.
+                    format: int32
+                    type: integer
                 type: object
               observedGeneration:
                 description: ObservedGeneration is the most recent generation observed
@@ -229,27 +409,70 @@ spec:
               status:
                 description: Status is the status of the Staging (e.g., Deployed,
                   Failed, Pending, Running).
+                enum:
+                - Pending
+                - Running
+                - Completed
+                - Failed
+                - Suspended
+                - Unknown
                 type: string
               transform:
                 description: Transform is the status of the transformation step.
                 properties:
-                  Status:
-                    description: The status of the associated staging obj (e.g., Complete,
-                      Running, Failed, Pending, Unknow).
+                  attempts:
+                    description: Attempts tracks the number of times this step has
+                      been attempted.
+                    format: int32
+                    type: integer
+                  failedAttempts:
+                    description: FailedAttempts tracks the number of failed attempts.
+                    format: int32
+                    type: integer
+                  lastAttemptTime:
+                    description: LastAttemptTime is the timestamp of the last attempt.
+                    format: date-time
                     type: string
                   lastCheckedTime:
                     description: LastCheckedTime is the last time the status was checked.
                     format: date-time
                     type: string
                   lastCompletedTime:
-                    description: LastCompletedTime is the last time the ingestion
-                      CronJob completed.
+                    description: LastCompletedTime is the last time the step (e.g.,
+                      ingestion CronJob) completed.
                     format: date-time
                     type: string
+                  lastFailureTime:
+                    description: LastFailureTime is the timestamp of the last failure.
+                    format: date-time
+                    type: string
+                  lastRunJobName:
+                    description: LastRunJobName is the name of the last Kubernetes
+                      Job created by this resource.
+                    type: string
+                  maxRetries:
+                    description: MaxRetries defines the maximum number of retries
+                      allowed.
+                    format: int32
+                    type: integer
                   message:
                     description: Message provides additional information or error
-                      messages about the ingestion status.
+                      messages about the step status.
                     type: string
+                  retryCount:
+                    description: RetryCount tracks the number of retries for the current
+                      attempt.
+                    format: int32
+                    type: integer
+                  status:
+                    description: Status of the associated staging object (e.g., Complete,
+                      Running, Failed, Pending, Unknown).
+                    type: string
+                  successfulAttempts:
+                    description: SuccessfulAttempts tracks the number of successful
+                      attempts.
+                    format: int32
+                    type: integer
                 type: object
             type: object
         required:

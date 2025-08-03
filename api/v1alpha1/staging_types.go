@@ -20,50 +20,174 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IngestSpec defines how this stage is initiated by an upstream job or event.
+type IngestMode string
+
+const (
+	IngestModeReference IngestMode = "reference"
+	IngestModeBootstrap IngestMode = "bootstrap"
+)
+
+// IngestSpec defines how this staging process is triggered by an upstream data ingestion step.
+//
+// The controller does not run the ingestion itself. Instead, it watches for the completion
+// of an external Kubernetes Job, CronJob, or a Trigger CRD.
+//
+// - If Mode is "reference", the referenced resource must already exist.
+// - If Mode is "bootstrap", the controller may create and manage the ingestion resource (future support).
 type IngestSpec struct {
-	// Mode determines how this stage is triggered: by a CronJob reference or a Trigger CRD
+	// Mode determines whether the ingestion source is a reference to an existing resource,
+	// or should be created and managed by this Staging resource in the future.
+	//
+	// Accepted values:
+	// - "reference": reference an existing CronJob, Job, or Trigger
+	// - "bootstrap": placeholder for future functionality to create the ingestion job
+	//
+	// +kubebuilder:validation:Enum=reference;bootstrap
+	// +kubebuilder:validation:Required
+	Mode IngestMode `json:"mode"`
+
+	// Type specifies the kind of resource used to signal ingestion readiness.
+	//
+	// Accepted values:
+	// - "cronjob": watches for successful Job completions from a CronJob
+	// - "job": watches a single-use Kubernetes Job
+	// - "trigger": watches a custom Trigger resource (e.g., based on PubSub, GCS, BigQuery)
+	//
 	// +kubebuilder:validation:Enum=cronjob;job;trigger
 	// +kubebuilder:validation:Required
-	Kind string `json:"kind"`
+	Type IngestType `json:"type"`
 
-	// Reference to an existing CronJob resource (used if mode=reference)
+	// Name of the ingestion resource.
+	// This must match the Kubernetes or custom resource to be watched.
+	//
 	// +kubebuilder:validation:Required
 	Name string `json:"name"`
 
-	// Namespace where the resource is defined.
-	// If omitted, defaults to the namespace of the Staging resource.
+	// Namespace where the ingestion resource is defined.
+	// If omitted, defaults to the namespace of the Staging object.
+	//
+	// +optional
 	Namespace string `json:"namespace,omitempty"`
 
-	// Owner indicates who owns or maintains this ingestion stage (optional metadata)
-	// +optional
-	Owner string `json:"owner,omitempty"`
-}
-
-// TransformSpec defines the dbt transformation to execute after ingestion.
-type TransformSpec struct {
-	// Name of the dbt project this stage executes
-	// +kubebuilder:validation:Required
-	Project string `json:"project"`
-
-	// dbt target profile to use (e.g. "dev", "prod")
-	// +kubebuilder:validation:Required
-	Target string `json:"target"`
-
-	// Image to run the Transform
+	// Image is the container image used to run the ingest.
+	// This image is launched in a Kubernetes from a Job or Cronjob created by the Staging controller.
+	//
 	// +kubebuilder:validation:Required
 	Image string `json:"image"`
 
-	// Optional owner metadata for the transform stage
+	// Args specifies the command-line arguments to pass to the container,
+	// overriding the default container command (entrypoint).
+	// If set, these arguments will replace the container's default command.
+	//
+	// +optional
+	Args []string `json:"args,omitempty"`
+
+	// Resources defines CPU and memory requests/limits for the Cronjob/Job container.
+	// If Type is "trigger", this field is ignored.
+	//
+	// +optional
+	Resources *ResourceRequirements `json:"resources,omitempty"`
+
+	// Schedule specifies the cron schedule for the ingestion job.
+	// This field is only relevant when Type is "cronjob".
+	// If Type is not "cronjob", this field is ignored.
+	//
+	// +optional
+	Schedule string `json:"schedule,omitempty"`
+
+	// Suspend indicates whether the ingestion action is currently suspended.
+	// If true, the controller will not process or watch the referenced ingestion resource.
+	//
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
+
+	// Owner identifies the team or user responsible for this ingestion step.
+	//
+	// +optional
 	Owner string `json:"owner,omitempty"`
 
-	// List of dbt models to execute
-	// +kubebuilder:validation:MinItems=1
-	Models []string `json:"models"`
+	// MaxRetry defines the maximum number of times to retry the transform step on failure.
+	// If not set, defaults to 0 (no retries).
+	//
+	// +optional
+	MaxRetry int32 `json:"maxRetry,omitempty"`
+}
 
-	// Whether to run dbt with --full-refresh
+// TransformSpec defines the transformation logic to run after ingestion.
+//
+// This stage creates a Kubernetes Job that runs the specified container image
+// (e.g., a dbt-core image) to execute the transformation. While this is initially
+// designed for dbt workflows, the spec is extensible to other engines such as
+// Spark, Python, or custom tools in the future.
+type TransformSpec struct {
+	// Name is a reference or descriptive label for this transform step.
+	//
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
+
+	// Project is the name of the transformation project (e.g., dbt project name).
+	//
+	// +kubebuilder:validation:Required
+	Project string `json:"project"`
+
+	// Target defines the execution target or environment profile (e.g., "dev", "prod").
+	//
+	// +kubebuilder:validation:Required
+	Target string `json:"target"`
+
+	// Image is the container image used to run the transform.
+	// This image is launched in a Kubernetes Job created by the Staging controller.
+	//
+	// +kubebuilder:validation:Required
+	Image string `json:"image"`
+
+	// Args specifies the command-line arguments to pass to the container,
+	// overriding the default container command (entrypoint).
+	// If set, these arguments will replace the container's default command.
+	//
+	// +optional
+	Args []string `json:"args,omitempty"`
+
+	// Models defines the transformation model names to run.
+	// For dbt, these are model names. For other engines, these could be script names, tasks, etc.
+	//
+	// +optional
+	Models []string `json:"models,omitempty"`
+
+	// Resources defines CPU and memory requests/limits for the Job container.
+	//
+	// +optional
+	Resources *ResourceRequirements `json:"resources,omitempty"`
+
+	// Engine defines the transformation engine to use (e.g., "dbt", "spark", "custom").
+	// Defaults to "dbt" if not specified.
+	//
+	// +kubebuilder:validation:Enum=dbt;spark;custom
+	// +kubebuilder:default=dbt
+	Engine TransformEngineType `json:"engine,omitempty"`
+
+	// Owner identifies the team or individual responsible for the transformation.
+	//
+	// +optional
+	Owner string `json:"owner,omitempty"`
+
+	// Suspend indicates whether the Transform action is currently suspended.
+	// If true, the controller will not process the transform step(s)
+	//
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
+
+	// Whether to force a full refresh of data (e.g., `dbt run --full-refresh`).
+	// Only applicable to engines that support it (like dbt).
+	//
 	// +optional
 	FullRefresh bool `json:"full_refresh,omitempty"`
+
+	// MaxRetry defines the maximum number of times to retry the transform step on failure.
+	// If not set, defaults to 0 (no retries).
+	//
+	// +optional
+	MaxRetry int32 `json:"maxRetry,omitempty"`
 }
 
 // StagingSpec defines the desired state of Staging
@@ -75,34 +199,61 @@ type StagingSpec struct {
 	Owner string `json:"owner,omitempty"`
 
 	// Ingest defines how the pipeline is initiated, either by referencing a Kubernetes CronJob or Job or by referencing a Trigger CRD
+	//
 	// +kubebuilder:validation:Required
 	Ingest IngestSpec `json:"ingest"`
 
 	// Transform defines the dbt-based transformation logic
+	//
 	// +kubebuilder:validation:Required
 	Transform TransformSpec `json:"transform"`
 }
 
-// internalStatus represents the current state of either the ingestion or transform step in a pipeline.
+// InternalStatus represents the current state of either the ingestion or transform step in a pipeline.
 // +kubebuilder:object:generate=true
 type InternalStatus struct {
-	// The status of the associated staging obj (e.g., Complete, Running, Failed, Pending, Unknow).
-	Status string `json:"Status,omitempty"`
+	// Status of the associated staging object (e.g., Complete, Running, Failed, Pending, Unknown).
+	Status string `json:"status,omitempty"`
 
-	// LastCompletedTime is the last time the ingestion CronJob completed.
+	// Message provides additional information or error messages about the step status.
+	Message string `json:"message,omitempty"`
+
+	// LastRunJobName is the name of the last Kubernetes Job created by this resource.
+	LastRunJobName string `json:"lastRunJobName,omitempty"`
+
+	// LastCompletedTime is the last time the step (e.g., ingestion CronJob) completed.
 	LastCompletedTime metav1.Time `json:"lastCompletedTime,omitempty"`
 
 	// LastCheckedTime is the last time the status was checked.
 	LastCheckedTime metav1.Time `json:"lastCheckedTime,omitempty"`
 
-	// Message provides additional information or error messages about the ingestion status.
-	Message string `json:"message,omitempty"`
+	// LastAttemptTime is the timestamp of the last attempt.
+	LastAttemptTime *metav1.Time `json:"lastAttemptTime,omitempty"`
+
+	// LastFailureTime is the timestamp of the last failure.
+	LastFailureTime *metav1.Time `json:"lastFailureTime,omitempty"`
+
+	// Attempts tracks the number of times this step has been attempted.
+	Attempts int32 `json:"attempts,omitempty"`
+
+	// RetryCount tracks the number of retries for the current attempt.
+	RetryCount int32 `json:"retryCount,omitempty"`
+
+	// MaxRetries defines the maximum number of retries allowed.
+	MaxRetries int32 `json:"maxRetries,omitempty"`
+
+	// SuccessfulAttempts tracks the number of successful attempts.
+	SuccessfulAttempts int32 `json:"successfulAttempts,omitempty"`
+
+	// FailedAttempts tracks the number of failed attempts.
+	FailedAttempts int32 `json:"failedAttempts,omitempty"`
 }
 
 // StagingStatus defines the observed state of a Staging resource.
 type StagingStatus struct {
 	// Status is the status of the Staging (e.g., Deployed, Failed, Pending, Running).
-	Status string `json:"status,omitempty"`
+	// +kubebuilder:validation:Enum=Pending;Running;Completed;Failed;Suspended;Unknown
+	Status StatusType `json:"status,omitempty"`
 
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -114,17 +265,18 @@ type StagingStatus struct {
 	Transform InternalStatus `json:"transform,omitempty"`
 
 	// Conditions is a list of status conditions for the Staging resource.
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Description",type=string,JSONPath=`.spec.description`,description="Staging pipeline description"
-// +kubebuilder:printcolumn:name="Owner",type=string,JSONPath=`.spec.owner`,description="Owner of the Staging",priority=1
-// +kubebuilder:printcolumn:name="Ingest Kind",type=string,JSONPath=`.spec.ingest.kind`,description="Ingest type (cronjob, job, trigger)"
-// +kubebuilder:printcolumn:name="Ingest Name",type=string,JSONPath=`.spec.ingest.name`,description="Name of the ingest resource"
-// +kubebuilder:printcolumn:name="Ingest Status",type=string,JSONPath=`.status.ingestion.status`,description="Current Ingestion Status"
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`,description="Current Staging Status"
+// +kubebuilder:resource:scope=Namespaced,shortName=stg
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`,description="Overall staging status",priority=1
+// +kubebuilder:printcolumn:name="Owner",type=string,JSONPath=`.spec.owner`,description="Owner",priority=1
+// +kubebuilder:printcolumn:name="Ingest",type=string,JSONPath=`.spec.ingest.type`,description="Ingest type"
+// +kubebuilder:printcolumn:name="Ingest Status",type=string,JSONPath=`.status.ingest.status`,description="Ingest status"
+// +kubebuilder:printcolumn:name="Transform Status",type=string,JSONPath=`.status.transform.status`,description="Transform status"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Staging is the Schema for the stagings API
@@ -140,7 +292,6 @@ type Staging struct {
 }
 
 // +kubebuilder:object:root=true
-
 // StagingList contains a list of Staging
 type StagingList struct {
 	metav1.TypeMeta `json:",inline"`

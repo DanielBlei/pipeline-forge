@@ -49,7 +49,7 @@ type TriggerReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *TriggerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
-	log.Info("Reconcilling Trigger:" + req.Name)
+	log.Info("Reconciling Trigger:" + req.Name)
 
 	trigger := &corev1alpha1.Trigger{}
 	if err := r.Get(ctx, req.NamespacedName, trigger); err != nil {

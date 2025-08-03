@@ -1,15 +1,33 @@
 apiVersion: core.pipeline-forge.io/v1alpha1
 kind: Trigger
 metadata:
+  name: sample-pubsub-trigger
+  namespace: staging-sample
   labels:
     app.kubernetes.io/name: pipeline-forge
     app.kubernetes.io/managed-by: kustomize
-  name: sample-trigger
-  namespace: staging-sample
 spec:
+  # Trigger Name
+  name: Sample Trigger
+  # Type of trigger to use — one of: gcs, pubsub, bigquery
   type: pubsub
+  # Container image to run the Pub/Sub check (this will be launched in a Job)
+  image: gcr.io/my-project/pubsub-trigger-checker:latest
+  # Arguments passed to the trigger container (optional)
+  args:
+    - "--check"
+    - "subscription=my-sub"
+  # Optional: team or owner responsible for this trigger
+  owner: data-platform
+  # Optional: description of what this trigger is for
+  description: "Fires when a message with dataset=users arrives on the pubsub topic."
+  # Optional: control execution schedule and frequency
+  cadence: "*/10 * * * *"        # Every 10 minutes
+  cooldown: "15m"                # At least 15 minutes between runs
+  runOnce: false
+  # Pub/Sub-specific settings
   pubsub:
     topic: sample-topic
     messageFilter:
-      attribute: some-config
-      equals: some-pattern
+      attribute: dataset
+      equals: users

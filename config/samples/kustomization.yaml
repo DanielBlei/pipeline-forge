@@ -1,5 +1,6 @@
 ## Append samples of your project ##
 resources:
+- core_sample_namespace.yaml
 - core_v1alpha1_staging_reference.yaml
 - core_v1alpha1_staging_trigger.yaml
 - core_v1alpha1_trigger.yaml

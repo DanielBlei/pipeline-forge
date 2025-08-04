@@ -123,11 +123,11 @@ func TestCreateCronJob(t *testing.T) {
 				tt.args.args,
 				tt.args.resources,
 			)
-			if cronJob.ObjectMeta.Name != tt.args.name {
-				t.Errorf("expected name %q, got %q", tt.args.name, cronJob.ObjectMeta.Name)
+			if cronJob.Name != tt.args.name {
+				t.Errorf("expected name %q, got %q", tt.args.name, cronJob.Name)
 			}
-			if cronJob.ObjectMeta.Namespace != tt.args.namespace {
-				t.Errorf("expected namespace %q, got %q", tt.args.namespace, cronJob.ObjectMeta.Namespace)
+			if cronJob.Namespace != tt.args.namespace {
+				t.Errorf("expected namespace %q, got %q", tt.args.namespace, cronJob.Namespace)
 			}
 			if cronJob.Spec.Schedule != tt.wantSchedule {
 				t.Errorf("expected schedule %q, got %q", tt.wantSchedule, cronJob.Spec.Schedule)
@@ -255,11 +255,11 @@ func TestNewJob(t *testing.T) {
 				tt.args.args,
 				tt.args.resources,
 			)
-			if job.ObjectMeta.Name != tt.args.name {
-				t.Errorf("expected name %q, got %q", tt.args.name, job.ObjectMeta.Name)
+			if job.Name != tt.args.name {
+				t.Errorf("expected name %q, got %q", tt.args.name, job.Name)
 			}
-			if job.ObjectMeta.Namespace != tt.args.namespace {
-				t.Errorf("expected namespace %q, got %q", tt.args.namespace, job.ObjectMeta.Namespace)
+			if job.Namespace != tt.args.namespace {
+				t.Errorf("expected namespace %q, got %q", tt.args.namespace, job.Namespace)
 			}
 			container := job.Spec.Template.Spec.Containers[0]
 			if container.Image != tt.wantContainer.Image {

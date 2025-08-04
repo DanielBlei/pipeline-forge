@@ -17,6 +17,27 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Run linter
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1.6
+
+      - name: Check that generated code is up to date
+        run: |
+          make generate
+          if ! git diff --exit-code; then
+            echo "::error::Generated code is not up to date. Please run 'make generate' and commit changes."
+            exit 1
+          fi
+
       - name: Running Tests
         run: |
           go mod tidy

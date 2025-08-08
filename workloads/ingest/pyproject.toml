@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ingest"
+version = "0.1.0"
+description = "Ingest Workload"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "typer>=0.16.0",
+    "ruamel.yaml>=0.18.0",
+    "pydantic>=2.0.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["ingest*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+exclude = [
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "tmp",
+    "ingest.egg-info",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+[project.scripts]
+ingest = "ingest.main:app"

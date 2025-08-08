@@ -76,6 +76,10 @@ env/
 .DS_Store
 Thumbs.db
 *.bak
+.claude/
+.cursor/
+.cursorignore
+.ruff_cache/
 
 # JetBrains & VSCode specific settings
 *.iml

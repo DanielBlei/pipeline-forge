@@ -7,7 +7,7 @@ domain: pipeline-forge.io
 layout:
 - go.kubebuilder.io/v4
 projectName: pipeline-forge
-repo: github.com/DanielBlei/pipeline-forge
+repo: github.com/DanielBlei/pipeline-forge/operator
 resources:
 - api:
     crdVersion: v1
@@ -16,7 +16,7 @@ resources:
   domain: pipeline-forge.io
   group: core
   kind: Staging
-  path: github.com/DanielBlei/pipeline-forge/api/v1alpha1
+  path: github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -25,6 +25,6 @@ resources:
   domain: pipeline-forge.io
   group: core
   kind: Trigger
-  path: github.com/DanielBlei/pipeline-forge/api/v1alpha1
+  path: github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1
   version: v1alpha1
 version: "3"

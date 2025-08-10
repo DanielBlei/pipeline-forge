@@ -27,10 +27,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	corev1alpha1 "github.com/DanielBlei/pipeline-forge/api/v1alpha1"
+	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
 )
 
-var _ = Describe("Staging Controller", func() {
+var _ = Describe("Trigger Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -40,31 +40,24 @@ var _ = Describe("Staging Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		staging := &corev1alpha1.Staging{}
+		trigger := &corev1alpha1.Trigger{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind Staging")
-			err := k8sClient.Get(ctx, typeNamespacedName, staging)
+			By("creating the custom resource for the Kind Trigger")
+			err := k8sClient.Get(ctx, typeNamespacedName, trigger)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &corev1alpha1.Staging{
+				resource := &corev1alpha1.Trigger{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					Spec: corev1alpha1.StagingSpec{
-						Description: "Testing Staging",
-						Owner:       "Daniel Blei",
-						Ingest: corev1alpha1.IngestSpec{
-							Mode:      "reference",
-							Type:      "cronjob",
-							Name:      "example-cronjob",
-							Namespace: "default",
-						},
-						Transform: corev1alpha1.TransformSpec{
-							Project: "example-dbt-project",
-							Target:  "dev",
-							Image:   "ghcr.io/example/dbt:latest",
-							Models:  []string{"stg_model"},
+					Spec: corev1alpha1.TriggerSpec{
+						Name: "testing trigger",
+						Type: "bigquery",
+						BigQuery: &corev1alpha1.BigQueryTriggerSpec{
+							Project: "test-gcp-project",
+							Dataset: "test_dataset",
+							Table:   "test_table",
 						},
 					},
 				}
@@ -74,16 +67,16 @@ var _ = Describe("Staging Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &corev1alpha1.Staging{}
+			resource := &corev1alpha1.Trigger{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance Staging")
+			By("Cleanup the specific resource instance Trigger")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &StagingReconciler{
+			controllerReconciler := &TriggerReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}

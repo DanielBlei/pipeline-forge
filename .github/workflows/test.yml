@@ -15,7 +15,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: operator/go.mod
 
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -23,12 +23,13 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('operator/go.sum') }}
 
       - name: Run linter
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.1.6
+          working-directory: operator
 
       - name: Check that generated code is up to date
         run: |
@@ -38,7 +39,15 @@ jobs:
             exit 1
           fi
 
+      - name: check if go.mod is tidy
+        run: |
+          cd operator
+          go mod tidy
+          if ! git diff --exit-code; then
+            echo "::error::go.mod is not tidy. Please run 'go mod tidy' and commit changes."
+            exit 1
+          fi
+
       - name: Running Tests
         run: |
-          go mod tidy
           make test

@@ -27,7 +27,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/DanielBlei/pipeline-forge/test/utils"
+	"github.com/DanielBlei/pipeline-forge/operator/test/utils"
 )
 
 // namespace where the project is deployed in

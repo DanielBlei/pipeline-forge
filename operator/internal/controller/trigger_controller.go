@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	corev1alpha1 "github.com/DanielBlei/pipeline-forge/api/v1alpha1"
+	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
 )
 
 // TriggerReconciler reconciles a Trigger object

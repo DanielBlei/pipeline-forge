@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+package controller
 
 import (
 	"context"
@@ -32,7 +32,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	corev1alpha1 "github.com/DanielBlei/pipeline-forge/api/v1alpha1"
+	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -44,7 +44,7 @@ var (
 	cancel    context.CancelFunc
 	testEnv   *envtest.Environment
 	cfg       *rest.Config
-	K8sClient client.Client
+	k8sClient client.Client
 )
 
 func TestControllers(t *testing.T) {
@@ -80,9 +80,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	K8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
-	Expect(K8sClient).NotTo(BeNil())
+	Expect(k8sClient).NotTo(BeNil())
 })
 
 var _ = AfterSuite(func() {

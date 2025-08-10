@@ -24,7 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	v1alpha1 "github.com/DanielBlei/pipeline-forge/api/v1alpha1"
+	v1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
 )
 
 var _ = Describe("Status Update", func() {

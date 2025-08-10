@@ -37,8 +37,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	corev1alpha1 "github.com/DanielBlei/pipeline-forge/api/v1alpha1"
-	"github.com/DanielBlei/pipeline-forge/internal/controller"
+	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
+	"github.com/DanielBlei/pipeline-forge/operator/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 

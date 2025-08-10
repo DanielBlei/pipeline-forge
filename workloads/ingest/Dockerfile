@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Copy project files
 COPY pyproject.toml ./
+COPY uv.lock ./
 COPY ingest ./ingest
 
 # Install uv and sync dependencies from pyproject.toml

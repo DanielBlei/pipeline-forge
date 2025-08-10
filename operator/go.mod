@@ -1,4 +1,4 @@
-module github.com/DanielBlei/pipeline-forge
+module github.com/DanielBlei/pipeline-forge/operator
 
 go 1.24.0
 

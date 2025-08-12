@@ -118,21 +118,21 @@ type TriggerSpec struct {
 	// +optional
 	Resources *ResourceRequirements `json:"resources,omitempty"`
 
-	// Cadence is a cron-style schedule for when the trigger should check for new data/events.
+	// Schedule is a cron-style schedule for when the trigger should check for new data or events.
 	//
 	// For example: "*/5 * * * *" (every 5 minutes)
-	// You must configure your controller to parse this correctly using robfig/cron or equivalent.
+	// Use standard cron syntax.
 	//
 	// +optional
-	Cadence string `json:"cadence,omitempty"`
+	Schedule string `json:"schedule,omitempty"`
 
-	// Cooldown defines the minimum time that must pass between successive runs.
+	// CooldownIntervalSeconds defines the minimum time that must pass between successive runs, in seconds.
 	// Prevents rapid re-triggering.
-	// Example: "5m", "1h"
+	// Example: 300 (for 5 minutes), 3600 (for 1 hour)
 	//
 	// +optional
-	// +kubebuilder:validation:Pattern=`^\d+(s|m|h|d)$`
-	Cooldown string `json:"cooldown,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	CooldownIntervalSeconds int32 `json:"cooldownIntervalSeconds,omitempty"`
 
 	// RunOnce, if true, means this trigger should only run once.
 	// Controller skips execution if status.lastTriggeredTime is set.
@@ -163,6 +163,12 @@ type TriggerSpec struct {
 	//
 	// +optional
 	MaxRetry int32 `json:"maxRetry,omitempty"`
+
+	// Suspend indicates whether the trigger is currently suspended.
+	// If true, the controller will not process the trigger.
+	//
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 // TriggerStatus defines the observed state of the Trigger resource.

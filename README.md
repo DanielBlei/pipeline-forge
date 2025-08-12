@@ -8,6 +8,17 @@
 
 > A Kubernetes-native platform for building modern, declarative data pipelines with clear boundaries between ingestion and transformation.
 
+## 📋 Quick Navigation
+
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Quick Start](#-quick-start)
+- [Architecture](#️-architecture)
+- [Documentation](#-documentation)
+- [Contributing](#-contributing)
+
+---
+
 ## 🚀 Overview
 
 Pipeline Forge is a complete solution for orchestrating data pipelines in Kubernetes environments. It combines a powerful Kubernetes operator with specialized workloads to provide a declarative, event-driven approach to data pipeline management.
@@ -21,173 +32,71 @@ Modern data teams face challenges with:
 - **Infrastructure Complexity**: Deploying and scaling data processing workloads
 - **Observability Gaps**: Tracking pipeline health and data lineage
 - **Team Coordination**: Coordinating between data engineering and platform teams
+- **Resilience and Lifecycle Management**: Ensuring each pipeline step is connected in a clear lifecycle—if one step fails, others don't attempt to run, preventing cascading errors and maintaining robust execution
 
 ### 💡 The Solution
 
 Pipeline Forge provides a Kubernetes-native platform that:
 
 - **Declaratively Orchestrates** data pipelines using Custom Resource Definitions (CRDs)
-- **Event-Driven Architecture** responds to GCS file drops, Pub/Sub messages, and BigQuery updates
+- **Flexible Ingestion** supports both event-driven (e.g., GCS file drops, Pub/Sub messages, BigQuery updates) and scheduled (CronJob-based) pipeline execution
 - **Clear Separation** between data ingestion and transformation phases
 - **Built-in Observability** with comprehensive status tracking and monitoring
 - **GitOps Ready** configuration that fits modern deployment practices
 
-## 🏗️ Architecture
-
-Pipeline Forge consists of two main components that work together seamlessly:
-
-### 🎛️ Kubernetes Operator
-
-The operator manages the lifecycle of data pipeline stages through:
-
-- **Staging Resources**: Complete pipeline steps that coordinate ingestion and transformation
-- **Trigger Resources**: Event-driven activation for pipelines
-- **Automatic Reconciliation**: Ensures pipeline state matches desired configuration
-
-### 🔧 Specialized Workloads
-
-Pre-built, production-ready data processing components:
-
-- **Ingest Workloads**: Type-safe data ingestion from MySQL, PostgreSQL, and more
-- **Transform Workloads**: dbt-based data transformation with version control
-- **Trigger Workloads**: Event processing for GCS, Pub/Sub, and BigQuery
-
-## 🛠️ Technology Stack
-
-| Component          | Technology                    | Purpose                                   |
-| ------------------ | ----------------------------- | ----------------------------------------- |
-| **Operator**       | Go, Kubernetes, Kubebuilder   | Pipeline orchestration and CRD management |
-| **Ingest**         | Python 3.13+, Pydantic, Typer | Type-safe data ingestion with validation  |
-| **Transform**      | dbt Core, BigQuery            | Data transformation and analytics         |
-| **Triggers**       | GCS, Pub/Sub, BigQuery APIs   | Event-driven pipeline activation          |
-| **Infrastructure** | Kubernetes, Docker, Helm      | Container orchestration and deployment    |
-
 ## ✨ Key Features
 
-### 📝 Declarative Pipeline Configuration
-
-```yaml
-apiVersion: core.pipeline-forge.io/v1alpha1
-kind: Staging
-metadata:
-  name: user-events-pipeline
-spec:
-  ingest:
-    mode: reference
-    type: cronjob
-    name: user-events-ingest
-    image: ghcr.io/org/ingest:latest
-
-  transform:
-    name: user-events-transform
-    project: analytics
-    target: prod
-    image: ghcr.io/org/dbt-core:latest
-    models:
-      - stg_user_events
-      - fct_user_events
-```
+- **Unified Pipeline Lifecycle**: Connect ingestion with staging models in a single application lifecycle - if ingestion fails, the entire staging fails, preventing orphaned transformations
+- **Native Kubernetes Resources**: Each step runs on 100% native K8s resources (Transform → Job, Ingest → CronJob/Job/Trigger)
+- **Event-Driven Orchestration**: React to file drops, Pub/Sub messages, and BigQuery updates with intelligent retry policies
+- **Built-in Observability**: Comprehensive status tracking with detailed execution history and failure analysis
+- **Flexible Ingestion**: Reference existing CronJobs during Ingestion or create new ones as needed with full type safety and managed by the operator
+- **Custom Image Support**: Use your own image for each step, or use pre-built Docker images from the Pipeline Forge repository
 
 ### ⚡ Event-Driven Orchestration
 
 - **GCS Triggers**: Monitor bucket changes and trigger pipelines
-- **Pub/Sub Triggers**: React to real-time messages
-- **BigQuery Triggers**: Watch for table updates and freshness
-- **Custom Events**: Extensible trigger system for any event source
-
-### 🔄 Clear Pipeline Boundaries
-
-- **Ingestion Phase**: Data extraction and loading with specialized workloads
-- **Transformation Phase**: dbt-based data modeling and analytics
-- **Observability**: Built-in status tracking and health monitoring
+- **Pub/Sub Triggers**: React to real-time messages with optional filtering
+- **BigQuery Triggers**: Watch for table updates and data freshness
+- **Retry & Cooldown**: Configurable retry policies with intelligent intervals
 
 ### ☸️ Kubernetes-Native
 
 - **CRD-Based**: Native Kubernetes resources for pipeline definition
 - **RBAC Integration**: Fine-grained access control for teams
 - **Resource Management**: CPU, memory, and storage allocation
-- **Scaling**: Automatic scaling based on workload demands
+- **Independent Scaling**: Each step scales independently as native K8s resources
 
-## 🔄 Workflow
+### 📊 Built-in Observability
 
-### 1. 📋 Pipeline Definition
+- **Rich Status Tracking**: Comprehensive pipeline health monitoring with detailed execution history
+- **Lifecycle Management**: Real-time phase tracking (Pending, Running, Completed, Failed)
+- **Execution Insights**: Track attempt counts, success/failure rates, and timing metrics
+- **Failure Analysis**: Detailed error messages and retry attempt tracking
 
-Define your data pipeline using declarative YAML configuration:
-
-- Specify data sources and ingestion schedules
-- Define transformation models and dependencies
-- Configure event triggers for real-time processing
-
-### 2. 🎛️ Operator Orchestration
-
-The operator automatically:
-
-- Creates and manages Kubernetes Jobs and CronJobs
-- Monitors pipeline execution and status
-- Handles failures and retries
-- Triggers transformations when ingestion completes
-
-### 3. ⚙️ Workload Execution
-
-Specialized workloads handle the actual data processing:
-
-- **Ingest**: Extract data from sources with type-safe configuration
-- **Transform**: Run dbt models to create analytics-ready datasets
-- **Monitor**: Track pipeline health and data quality
-
-### 4. 🚀 Event-Driven Activation
-
-Pipelines can be triggered by:
-
-- Scheduled CronJobs for batch processing
-- GCS file drops for real-time ingestion
-- Pub/Sub messages for streaming data
-- BigQuery table updates for data freshness
-
-## 📊 Use Cases
-
-### 📈 Batch Data Processing
+### 🔄 Example
 
 ```yaml
-# Daily sales data pipeline
+apiVersion: core.pipeline-forge.io/v1alpha1
+kind: Staging
+metadata:
+  name: user-events-pipeline
+  namespace: staging-events
 spec:
   ingest:
-    type: cronjob
-    schedule: "0 2 * * *" # Daily at 2 AM
-  transform:
-    models:
-      - stg_daily_sales
-      - fct_sales
-```
-
-### ⚡ Real-Time Event Processing
-
-```yaml
-# User activity streaming pipeline
-spec:
-  ingest:
+    mode: reference
     type: trigger
-    name: user-activity-trigger
+    name: user-events-trigger
   transform:
+    name: user-events-transform
+    project: analytics
+    target: prod
+    image: gcr.io/org/dbt-core:latest
     models:
       - stg_user_events
-      - fct_user_sessions
 ```
 
-### 🔗 Multi-Source Data Integration
-
-```yaml
-# Combine data from multiple sources
-spec:
-  ingest:
-    type: cronjob
-    schedule: "0 */6 * * *" # Every 6 hours
-  transform:
-    models:
-      - stg_customer_data
-      - stg_order_data
-      - fct_customer_orders
-```
+📖 **[View comprehensive examples →](docs/examples.md)**
 
 ## 🚀 Quick Start
 
@@ -225,6 +134,43 @@ spec:
    kubectl describe staging user-events-staging
    ```
 
+## 🏗️ Architecture
+
+Pipeline Forge consists of two main components that work together seamlessly:
+
+### 🎛️ Kubernetes Operator
+
+The operator manages the lifecycle of data pipeline stages through:
+
+- **Staging Resources**: Complete pipeline steps that coordinate ingestion and transformation
+- **Trigger Resources**: Event-driven activation for pipelines
+- **Ingestion Management**: Supports ingestion via both event-driven triggers and CronJobs
+- **Automatic Reconciliation**: Ensures pipeline state matches desired configuration
+
+### 🔧 Specialized Workloads
+
+Pre-built, production-ready data processing components:
+
+- **Ingest Workloads**: Type-safe data ingestion from MySQL, PostgreSQL, and more
+- **Transform Workloads**: dbt-based data transformation with version control
+- **Trigger Workloads**: Event processing for GCS, Pub/Sub, and BigQuery
+
+## 📚 Documentation
+
+- **[📋 Examples](docs/examples.md)** - Comprehensive YAML examples and use cases
+- **[🎛️ Operator Guide](operator/README.md)** - Detailed operator documentation
+- **[🔧 Workloads](workloads/README.md)** - Data processing components
+
+## 🛠️ Technology Stack
+
+| Component          | Technology                    | Purpose                                              |
+| ------------------ | ----------------------------- | ---------------------------------------------------- |
+| **Operator**       | Go, Kubernetes, Kubebuilder   | Pipeline orchestration and CRD management            |
+| **Ingest**         | Python 3.13+, Pydantic, Typer | Type-safe data ingestion with validation             |
+| **Transform**      | dbt Core, BigQuery            | Data transformation and analytics                    |
+| **Triggers**       | GCS, Pub/Sub, BigQuery APIs   | Event-driven pipeline activation with retry policies |
+| **Infrastructure** | Kubernetes, Docker            | Container orchestration and deployment               |
+
 ## 📁 Project Structure
 
 ```
@@ -237,24 +183,9 @@ pipeline-forge/
 │   ├── ingest/        # Type-safe ingestion (Python)
 │   ├── transform/     # dbt transformations
 │   └── trigger/       # Event processing
-└── docs/             # Documentation (planned)
+└── docs/              # Documentation
+    └── examples.md    # Comprehensive examples
 ```
-
-## 🔧 Components
-
-### Operator (`operator/`)
-
-Kubernetes operator that manages pipeline orchestration
-
-- [Operator Documentation](operator/README.md)
-
-### Workloads (`workloads/`)
-
-Specialized data processing components
-
-- **Ingest**: Type-safe data ingestion with Pydantic
-- **Transform**: dbt-based data transformation
-- **Trigger**: Event processing and monitoring
 
 ## 🤝 Contributing
 
@@ -294,3 +225,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+```
+
+```

@@ -89,20 +89,14 @@ spec:
                 - project_id
                 - table_id
                 type: object
-              cadence:
+              cooldownIntervalSeconds:
                 description: |-
-                  Cadence is a cron-style schedule for when the trigger should check for new data/events.
-
-                  For example: "*/5 * * * *" (every 5 minutes)
-                  You must configure your controller to parse this correctly using robfig/cron or equivalent.
-                type: string
-              cooldown:
-                description: |-
-                  Cooldown defines the minimum time that must pass between successive runs.
+                  CooldownIntervalSeconds defines the minimum time that must pass between successive runs, in seconds.
                   Prevents rapid re-triggering.
-                  Example: "5m", "1h"
-                pattern: ^\d+(s|m|h|d)$
-                type: string
+                  Example: 300 (for 5 minutes), 3600 (for 1 hour)
+                format: int32
+                minimum: 0
+                type: integer
               description:
                 description: Description is an optional human-readable description
                   of the trigger.
@@ -228,6 +222,13 @@ spec:
                   RunOnce, if true, means this trigger should only run once.
                   Controller skips execution if status.lastTriggeredTime is set.
                 type: boolean
+              schedule:
+                description: |-
+                  Schedule is a cron-style schedule for when the trigger should check for new data or events.
+
+                  For example: "*/5 * * * *" (every 5 minutes)
+                  Use standard cron syntax.
+                type: string
               type:
                 description: |-
                   Type specifies the kind of event that will activate this trigger.

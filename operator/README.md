@@ -20,15 +20,25 @@ A Staging resource represents a complete pipeline step that prepares data for an
 - Reference existing Kubernetes CronJobs, Jobs, or Trigger resources
 - Manage the lifecycle of ingestion containers
 - Automatically trigger dbt transformations when ingestion completes
-- Provide observability and status tracking for pipeline stages
+- Provide comprehensive observability and status tracking for pipeline stages
+- Support retry mechanisms for both ingestion and transformation phases
+- Suspend individual pipeline stages for maintenance or debugging
+- Track detailed metrics including attempts, successes, and failures
 
 ### Trigger Resource
 
 Trigger resources enable event-driven pipeline activation through:
 
 - **GCS Triggers**: Monitor Google Cloud Storage buckets for file drops
-- **Pub/Sub Triggers**: Listen to Google Cloud Pub/Sub messages
-- **BigQuery Triggers**: Watch for BigQuery table updates
+- **Pub/Sub Triggers**: Listen to Google Cloud Pub/Sub messages with optional message filtering
+- **BigQuery Triggers**: Watch for BigQuery table freshness and updates
+
+Triggers support advanced features including:
+
+- **Retry Mechanisms**: Configurable retry policies with exponential backoff
+- **Cooldown Periods**: Prevent rapid re-triggering with configurable intervals
+- **Run-Once Mode**: Execute triggers only once for one-time operations
+- **Comprehensive Status Tracking**: Detailed monitoring of attempts, successes, and failures
 
 ## Installation
 
@@ -97,20 +107,12 @@ spec:
     type: cronjob
     name: ingest-user-events # name of the resource to watch
     namespace: raw-jobs
-    image: ghcr.io/org/ingest:latest
-    resources:
-      requests:
-        cpu: "100m"
-        memory: "256Mi"
-      limits:
-        cpu: "500m"
-        memory: "1Gi"
 
   transform:
     name: user-events-transform
     project: data-group
     target: dev
-    image: ghcr.io/org/dbt-core:1.7.9
+    image: gcr.io/org/dbt-core:1.7.9
     models:
       - stg_user_events
     engine: dbt
@@ -160,6 +162,90 @@ spec:
     models:
       - stg_sales_data
 ```
+
+### BigQuery Data Freshness Monitoring
+
+```yaml
+apiVersion: core.pipeline-forge.io/v1alpha1
+kind: Trigger
+metadata:
+  name: bq-freshness-trigger
+  namespace: staging-sample
+spec:
+  type: bigquery
+  name: bq-freshness-trigger
+  description: "Monitors BigQuery table freshness and triggers pipeline updates"
+  owner: data-engineering
+  schedule: "*/15 * * * *" # Check every 15 minutes
+  cooldownIntervalSeconds: 300 # 5 minute cooldown
+  maxRetry: 3
+
+  bigquery:
+    project_id: "my-gcp-project"
+    dataset_id: "analytics"
+    table_id: "daily_sales"
+
+---
+apiVersion: core.pipeline-forge.io/v1alpha1
+kind: Staging
+metadata:
+  name: sales-analytics-staging
+spec:
+  description: "Processes sales data when BigQuery table is updated"
+  owner: analytics-team
+
+  ingest:
+    mode: reference
+    type: trigger
+    name: bq-freshness-trigger
+    maxRetry: 2
+
+  transform:
+    name: sales-analytics-transform
+    project: sales-analytics
+    target: prod
+    image: ghcr.io/org/dbt-core:latest
+    models:
+      - stg_daily_sales
+      - fct_sales_metrics
+    full_refresh: false
+    maxRetry: 3
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2"
+        memory: "4Gi"
+```
+
+## Advanced Features
+
+### Retry Mechanisms
+
+Both Staging and Trigger resources support configurable retry policies:
+
+- **MaxRetry**: Set maximum retry attempts for failed operations
+- **Exponential Backoff**: Automatic backoff between retry attempts
+- **Status Tracking**: Monitor attempts, successes, and failures
+- **Cooldown Periods**: Prevent rapid re-triggering with configurable intervals
+
+### Status Monitoring
+
+Comprehensive status tracking provides visibility into pipeline health:
+
+- **Attempt Tracking**: Monitor total attempts, successful attempts, and failed attempts
+- **Timing Information**: Track last attempt time, last failure time, and completion times
+- **Job Monitoring**: Track Kubernetes Job names and execution status
+- **Condition Reporting**: Kubernetes-style conditions for resource health
+
+### Suspension and Control
+
+Pipeline stages can be individually controlled:
+
+- **Suspend Ingest**: Pause ingestion while keeping transformation active
+- **Suspend Transform**: Pause transformation while ingestion continues
+- **Run-Once Triggers**: Execute triggers only once for one-time operations
 
 ## Development
 
@@ -217,6 +303,7 @@ make run
 ```
 
 4. **Clean up local cluster**:
+
 ```sh
 make cleanup-test-e2e
 ```

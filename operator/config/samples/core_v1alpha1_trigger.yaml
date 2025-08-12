@@ -21,9 +21,9 @@ spec:
   owner: data-platform
   # Optional: description of what this trigger is for
   description: "Fires when a message with dataset=users arrives on the pubsub topic."
-  # Optional: control execution schedule and frequency
-  cadence: "*/10 * * * *"        # Every 10 minutes
-  cooldown: "15m"                # At least 15 minutes between runs
+ # Schedule for the trigger's job (how often to check for new data/events)
+  schedule: "*/2 * * * *"
+  cooldownIntervalSeconds: 300                # At least 5 minutes cooldown to consider another new data/events
   runOnce: false
   # Pub/Sub-specific settings
   pubsub:

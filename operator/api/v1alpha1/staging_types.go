@@ -69,10 +69,10 @@ type IngestSpec struct {
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 
-	// Image is the container image used to run the ingest.
+	// Image is the container image used to run the ingest. (only relevant when mode is "bootstrap")
 	// This image is launched in a Kubernetes from a Job or Cronjob created by the Staging controller.
 	//
-	// +kubebuilder:validation:Required
+	// +optional
 	Image string `json:"image"`
 
 	// Args specifies the command-line arguments to pass to the container,
@@ -88,12 +88,19 @@ type IngestSpec struct {
 	// +optional
 	Resources *ResourceRequirements `json:"resources,omitempty"`
 
-	// Schedule specifies the cron schedule for the ingestion job.
-	// This field is only relevant when Type is "cronjob".
-	// If Type is not "cronjob", this field is ignored.
+	// Schedule defines the cron schedule (in standard cron format) for the ingestion job.
+	// This field is only relevant when Mode is "bootstrap" and Type is "cronjob".
+	// If Mode is "reference" or Type is not "cronjob", this field is ignored.
 	//
 	// +optional
 	Schedule string `json:"schedule,omitempty"`
+
+	// PollIntervalSeconds specifies how frequently (in seconds) the controller checks for changes
+	// or status updates in the ingestion resource.
+	// If not set, defaults to 120 seconds.
+	//
+	// +optional
+	PollIntervalSeconds int32 `json:"pollIntervalSeconds,omitempty"`
 
 	// Suspend indicates whether the ingestion action is currently suspended.
 	// If true, the controller will not process or watch the referenced ingestion resource.

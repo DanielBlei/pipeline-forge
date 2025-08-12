@@ -28,8 +28,8 @@ spec:
     type: cronjob
      # Optional team or service responsible for this ingest source
     owner: ingestion-team
-    # Cron schedule for the ingestion job (runs every hour at minute 0)
-    schedule: "0 * * * *"
+    # Optional: poll interval to check the status of the ingestion resource (default is 120 seconds)
+    pollIntervalSeconds: 60
     # Optional: tune CPU and memory for the ingest job/cronjob
     resources:
       requests:

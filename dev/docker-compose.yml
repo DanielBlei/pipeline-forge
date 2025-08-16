@@ -1,0 +1,47 @@
+services:
+  mysql:
+    image: mysql:8
+    container_name: pipeline-forge-mysql
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-pipeline_forge_dev}
+      MYSQL_USER: ${MYSQL_USER:-pipeline_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-pipeline_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init/mysql:/docker-entrypoint-initdb.d:Z
+    networks:
+      - pipeline-forge-network
+
+  postgres:
+    image: postgres:17
+    container_name: pipeline-forge-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pipeline_password}
+      POSTGRES_USER: ${POSTGRES_USER:-pipeline_user}
+      POSTGRES_DB: ${POSTGRES_DB:-pipeline_forge_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d:Z
+    networks:
+      - pipeline-forge-network
+
+volumes:
+  mysql_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  pipeline-forge-network:
+    driver: bridge

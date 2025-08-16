@@ -2,13 +2,14 @@ import logging
 
 def setup_logging(debug: bool = False):
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
     if debug:
         logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s")
+    else: 
+        logger.setLevel(logging.INFO)
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
     handler = logging.StreamHandler()
-
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(filename)s:%(lineno)d - %(message)s")
     handler.setFormatter(formatter)
     if not logger.hasHandlers():
         logger.addHandler(handler)

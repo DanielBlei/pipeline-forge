@@ -1,17 +1,12 @@
-from typing import Optional, Any, Dict
+from typing import Optional, Any
 from pydantic import BaseModel, Field
-
-
-# Staging and production targets
-class TargetConfig(BaseModel):
-    """Base configuration for data targets (destinations)."""
-    staging: list[Dict[str, Any]] = Field(default_factory=list, description="List of target configs for staging environment", min_items=1)
-    production: list[Dict[str, Any]] = Field(default_factory=list, description="List of target configs for production environment", min_items=1)
+from ..core.config import BigQueryTarget as BigQueryTargetConfig
 
 
 class Target(BaseModel):
     """Base target class with Pydantic validation."""
-    config: TargetConfig = Field(..., description="Target configuration")
+    config: BigQueryTargetConfig = Field(..., description="Target configuration")
+    env: str = Field(..., description="Environment name (staging/production)")
 
     def load(self, data: Any, table: Optional[str] = None) -> None:
         """Load data into the target destination.

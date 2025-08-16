@@ -10,6 +10,24 @@ help: ## Display this help.
 .PHONY: test
 test: test-operator ## Run Pipeline Forge tests
 
+.PHONY: dev-up
+dev-up: ## Start development environment with docker-compose (dev/)
+	docker-compose -f dev/docker-compose.yml up -d
+
+.PHONY: dev-logs
+dev-logs: ## Follow the logs of the development environment
+	docker-compose -f dev/docker-compose.yml logs -f
+
+.PHONY: dev-down
+dev-down: ## Stop development environment with docker-compose (dev/)
+	docker-compose -f dev/docker-compose.yml down
+
+.PHONY: dev-cleanup
+dev-cleanup: ## Clean up development environment (containers, volumes, networks)
+	docker-compose -f dev/docker-compose.yml down -v
+	docker volume ls | grep -E "(dev_|pipeline-forge)" | awk '{print $$2}' | xargs -r docker volume rm
+	docker ps -a | grep -E "(pipeline-forge|mysql|postgres)" | awk '{print $$1}' | xargs -r docker rm -f
+
 
 ##@ Operator Development
 
@@ -40,4 +58,3 @@ build-and-deploy-operator: ## Build and deploy the operator binary
 .PHONY: undeploy-operator
 undeploy-operator: ## Undeploy the operator binary
 	${MAKE} -C operator undeploy
-

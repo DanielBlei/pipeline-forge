@@ -1,12 +1,13 @@
 from .base import Target
-from typing import Any, Optional, Dict
+from typing import Any, Optional
+from ..core.config import BigQueryTarget as BigQueryTargetConfig
 
 
 class BigQueryTarget(Target):
     """Google BigQuery target implementation."""
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config=config)
+    def __init__(self, config: BigQueryTargetConfig, env: str):
+        super().__init__(config=config, env=env)
 
     def load(self, data: Any, table: Optional[str] = None) -> None:
         # TODO: Implement loading logic to BigQuery

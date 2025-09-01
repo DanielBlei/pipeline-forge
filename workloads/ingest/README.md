@@ -6,7 +6,8 @@ A modern, type-safe data ingestion pipeline built with Python 3.13+ and Pydantic
 
 - **Type-Safe Configuration**: Built with Pydantic for runtime validation and type checking
 - **Extensible Architecture**: Easy to add new data sources with Union types
-- **Professional Standards**: Follows modern Python best practices
+- **Multi-Source Support**: Ingest data from multiple database sources in a single pipeline
+- **Streaming Processing**: Process large datasets efficiently with configurable chunk sizes
 - **Comprehensive Logging**: Structured logging with debug support
 - **CLI Interface**: Powered by Typer for excellent user experience
 
@@ -16,8 +17,8 @@ A modern, type-safe data ingestion pipeline built with Python 3.13+ and Pydantic
 # Install dependencies
 pip install -e .
 
-# Run with example configuration
-python -m ingest.main --config example_config.yaml
+# Run Ingest in dev environment
+python -m ingest.main --config example_config.yaml --catalog example_catalog.yaml --env dev
 ```
 
 ## Configuration
@@ -41,11 +42,9 @@ This project demonstrates modern Python development practices:
 ## Development
 
 ```bash
-# Install development dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
+# Install development dependencies (using uv package manager)
+uv venv
+uv sync
 
 # Format code
 ruff format .

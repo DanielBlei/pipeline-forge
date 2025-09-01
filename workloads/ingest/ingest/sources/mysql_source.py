@@ -1,6 +1,6 @@
 from typing import Optional, Any
 from .source import Source
-from .extractor import BaseExtractor
+from ..extractors import BaseExtractor
 from ..core.config import SourceConfig
 import logging
 
@@ -28,10 +28,10 @@ class MySQLSource(Source):
         self.extractor.connect()
         logger.debug("MySQL source connected via BaseExtractor")
     
-    def extract(self, table: str, limit: Optional[int] = None) -> Any:
+    def extract(self, table: str, chunk_size: int, limit: Optional[int] = None) -> Any:
         """Extract data from MySQL table."""
         # Delegate to the extractor
-        return self.extractor.extract(table, limit)
+        return self.extractor.extract(table=table, chunk_size=chunk_size, limit=limit)
     
     def validate_connection(self) -> bool:
         """Validate MySQL connection."""

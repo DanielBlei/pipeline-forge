@@ -1,15 +1,19 @@
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any
+from rich.table import Table
 from sqlalchemy import create_engine, text, Engine
 from sqlalchemy.exc import SQLAlchemyError
 import logging
+
+from ..core.config import Config
+from ..helpers.retry import retry_on_exception
 
 logger = logging.getLogger(__name__)
 
 
 class BaseExtractor:
     """Base extraction class using SQLAlchemy for database-agnostic data extraction."""
-    
-    def __init__(self, connection_string: str, **engine_kwargs):
+
+    def __init__(self, connection_string: str, config: Optional[Config] = None, **engine_kwargs):
         """Initialize the extractor with a database connection string.
         
         Args:
@@ -22,7 +26,8 @@ class BaseExtractor:
         self.connection_string = connection_string
         self.engine: Optional[Engine] = None
         self.engine_kwargs = engine_kwargs
-        
+    
+    @retry_on_exception(retries=5, delay=30)
     def connect(self) -> None:
         """Connect to the database and create the engine."""
         try:
@@ -42,10 +47,11 @@ class BaseExtractor:
             self.engine = create_engine(self.connection_string, **engine_options)
             logger.debug("Engine created successfully")
             
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Failed to create engine: {e}")
             raise
     
+    @retry_on_exception(retries=5, delay=30)
     def validate_connection(self) -> bool:
         """Validate the database connection.
         
@@ -53,10 +59,7 @@ class BaseExtractor:
             True if connection is valid, False otherwise
         """
         if not self.engine:
-            try:
-                self.connect()
-            except SQLAlchemyError:
-                return False
+            self.connect()  # This will retry if it fails
         
         try:
             with self.engine.connect() as conn:
@@ -68,17 +71,18 @@ class BaseExtractor:
                 
         except SQLAlchemyError as e:
             logger.error(f"Database connection validation failed: {e}")
-            return False
+            raise
     
-    def extract(self, table: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Extract data from a table using SQLAlchemy.
+    @retry_on_exception()
+    def extract(self, table: Table, chunk_size: int = 1000, limit: Optional[int] = None) -> Any:
+        """Extract data from a table using SQLAlchemy with streaming for memory efficiency.
         
         Args:
             table: Name of the table to extract from
             limit: Optional limit on number of rows to extract
             
-        Returns:
-            List of dictionaries representing the extracted data
+        Yields:
+            Dict[str, Any] representing each row from the table
             
         Raises:
             SQLAlchemyError: If extraction fails
@@ -89,26 +93,25 @@ class BaseExtractor:
         try:
             with self.engine.connect() as conn:
                 # Build the SELECT query
-                query = f"SELECT * FROM {table}"
+                columns = ",".join([column.name for column in table.columns])
+                query = f"SELECT {columns} FROM {table.name}"
                 if limit:
                     query += f" LIMIT {limit}"
                 
-                logger.info(f"Executing query: {query}")
+                logger.info(f"Executing streaming query: {query}")
                 
-                # Execute the query
-                result = conn.execute(text(query))
+                # Execute with cursor for memory efficiency
+                result = conn.execution_options(yield_per=chunk_size).execute(text(query))
                 
-                # Convert to list of dictionaries
-                data = []
+                # Yield rows one by one for memory efficiency
                 for row in result:
-                    data.append(dict(row._mapping))
+                    yield dict(row._mapping)
                 
-                logger.info(f"Successfully extracted {len(data)} rows from {table}")
-                return data
+                logger.info(f"Successfully completed streaming extraction from {table.name}")
                 
         except SQLAlchemyError as e:
-            logger.error(f"Failed to extract data from {table}: {e}")
-            raise
+            logger.error(f"Failed to extract data from {table.name}: {e}")
+            raise   
     
     def close(self) -> None:
         """Close the engine and clean up resources."""

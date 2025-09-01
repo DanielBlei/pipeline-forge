@@ -4,11 +4,12 @@ from .mysql_source import MySQLSource
 from .postgres_source import PostgresSource
 from ..core.config import Config
 
-def source_factory(config: Config, env: str) -> Source:
+def source_factory(config: Config, source_name: str, env: str) -> Source:
     """Create a source instance based on configuration.
     
     Args:
         config: IngestConfig instance containing source configurations
+        source_name: Name of the source to create
         env: Environment name (staging/production)
         
     Returns:
@@ -21,17 +22,17 @@ def source_factory(config: Config, env: str) -> Source:
     if env not in config.sources:
         raise ValueError(f"No sources configured for environment: {env}")
     
-    sources = config.sources[env]
-    if not sources:
-        raise ValueError(f"No sources found for environment: {env}")
+    source_config = config.sources.get(env).get(source_name)
+    if not source_config:
+        available_sources = list(config.sources[env].keys())
+        raise ValueError(f"Source '{source_name}' not found in environment '{env}'. Available sources: {available_sources}")
     
-    for source in sources:
-        if source.type.value == "mysql":
-            return MySQLSource(source, env)
-        elif source.type.value == "postgres":
-            return PostgresSource(source, env)
-        else:
-            raise ValueError(f"Unsupported source type: {source.type}")
+    if source_config.type.value == "mysql":
+        return MySQLSource(source_config, env)
+    elif source_config.type.value == "postgres":
+        return PostgresSource(source_config, env)
+    else:
+        raise ValueError(f"Unsupported source type: {source_config.type}")
 
 
 # Union type for type hints

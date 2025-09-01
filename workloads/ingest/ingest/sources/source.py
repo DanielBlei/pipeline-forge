@@ -1,7 +1,8 @@
 from typing import Optional, Any
 from pydantic import BaseModel, Field, ConfigDict
+from rich.table import Table
 from ..core.config import SourceConfig
-from .extractor import BaseExtractor
+from ..extractors import BaseExtractor
 import logging
 
 logger = logging.getLogger(__name__)
@@ -34,22 +35,22 @@ class Source(BaseModel):
     def connect(self) -> None:
         """Connect to the source."""
         if self.extractor:
-            self.extractor.connect()
+            self.extractor.connect(config=self.config)
         logger.info(f"Connected to source: {self.config.database}")
     
-    def extract(self, table: str, limit: Optional[int] = None) -> Any:
-        """Extract data from the source using SQLAlchemy.
+    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Any:
+        """Extract data from the source using SQLAlchemy with streaming.
         
         Args:
             table: Name of the table to extract
             limit: Optional limit on number of rows
             
-        Returns:
-            Extracted data as list of dictionaries
+        Yields:
+            Dict[str, Any] representing each row from the table
         """
         if not self.extractor:
             raise RuntimeError("Extractor not initialized")
-        return self.extractor.extract(table, limit)
+        return self.extractor.extract(table=table, chunk_size=chunk_size, limit=limit)
     
     def validate_connection(self) -> bool:
         """Validate connection to the source.

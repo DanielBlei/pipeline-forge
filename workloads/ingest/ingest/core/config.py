@@ -8,14 +8,6 @@ class DatabaseType(str, Enum):
     POSTGRES = "postgres"
     BIGQUERY = "bigquery"
 
-class SecretConfig(BaseModel):
-    name: str
-    path: str
-
-class SecretsConfig(BaseModel):
-    provider: str
-    secrets: List[SecretConfig]
-
 class ConnectionConfig(BaseModel):
     host: str
     port: int
@@ -42,7 +34,7 @@ class BigQueryTarget(BaseModel):
 class RuntimeParams(BaseModel):
     retry_attempts: int = Field(ge=1, le=10, default=3)
     retry_delay_seconds: int = Field(ge=1, le=3600, default=30)
-    chunk_size: int = Field(ge=1000, le=1000000, default=100000)
+    chunk_size: int = Field(default=10000)
 
 class TargetConfig(BaseModel):
     name: str
@@ -50,12 +42,20 @@ class TargetConfig(BaseModel):
     connection: ConnectionConfig
     ssl_required: bool = False
 
+class SecretConfig(BaseModel):
+    name: str
+    path: str
+
+class SecretsConfig(BaseModel):
+    provider: str
+    secrets: List[SecretConfig]
+
 class Config(BaseModel):
     version: str
     params: RuntimeParams
     secrets: SecretsConfig
-    sources: Dict[str, List[SourceConfig]]
-    targets: Dict[str, List[BigQueryTarget]]
+    sources: Dict[str, Dict[str, SourceConfig]]  # environment -> source_name -> SourceConfig
+    targets: Dict[str, Dict[str, BigQueryTarget]]
 
     model_config = ConfigDict(
             extra='forbid',
@@ -68,10 +68,7 @@ class Config(BaseModel):
         if environment not in self.sources:
             return None
         
-        for source in self.sources[environment]:
-            if source.name == source_name:
-                return source
-        return None
+        return self.sources.get(environment).get(source_name)
 
 
     def get_target_config(self, environment: str, target_name: str) -> Optional[BigQueryTarget]:
@@ -79,8 +76,5 @@ class Config(BaseModel):
         if environment not in self.targets:
             return None
         
-        for target in self.targets[environment]:
-            if target.name == target_name:
-                return target
-        return None
+        return self.targets.get(environment).get(target_name)
 

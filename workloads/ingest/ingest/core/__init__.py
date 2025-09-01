@@ -10,6 +10,13 @@ from .config import (
     DatabaseType
 )
 
+from .catalog import (
+    Catalog,
+    Table,
+    Column,
+    ReplicationType
+)
+
 __all__ = [
     # Config models
     "Config",
@@ -19,6 +26,11 @@ __all__ = [
     "RuntimeParams",
     "SecretsConfig",
     "DatabaseType",
-    "BigQueryTarget",
+
+    # Catalog models
+    "Catalog",
+    "Table",
+    "Column",
+    "ReplicationType",
 
 ]

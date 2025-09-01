@@ -6,12 +6,12 @@ import typer # type: ignore
 from ruamel.yaml import YAML # type: ignore
 from .log import setup_logging
 from .sources import source_factory
-from .core.config import Config
-
+from .core import Config, Catalog
 app = typer.Typer()
 
 # Module-level constants for default values
 CONFIG_PATH = typer.Option(..., '--config', '-c', help='Path to config file')
+CATALOG_PATH = typer.Option(..., '--catalog', '-cat', help='Path to catalog file')
 DEBUG_FLAG = typer.Option(False, '--debug', '-d', help='Enable debug mode')
 ENV_FLAG = typer.Option("dev", '--env', '-e', help='Environment to use')
 
@@ -20,6 +20,7 @@ logger = setup_logging(debug=DEBUG_FLAG)
 @app.command() 
 def ingest(
     configPath: Path = CONFIG_PATH,
+    catalogPath: Path = CATALOG_PATH,
     debug: bool = DEBUG_FLAG,
     env: str = ENV_FLAG,
 ):
@@ -36,16 +37,47 @@ def ingest(
     if env.lower() not in ["dev", "prod"]:
         raise ValueError(f"Invalid Env flag: {env} expected `dev` or `prod`")
     
-    config = load_config(configPath)
+    config = load_yaml_model(configPath, Config)
+    catalog = load_yaml_model(catalogPath, Catalog) 
+    
     try:
-        # Initialize source based on the environment
-        source = source_factory(config, env)
+        # Get all unique sources from the catalog
+        sources = catalog.get_sources()
+        logger.info(f"Found {len(sources)} sources in catalog: {', '.join(sources)}")
         
-        # Validate connection
-        if not source.validate_connection():
-            logger.error("Failed to validate source connection")
-            sys.exit(1)
-        logger.info(f"Successfully connected to database: `{source.config.name}`")
+        # Process each source and its tables
+        for source_name in sources:
+            logger.info(f"Processing source: {source_name}")
+            
+            # Get all tables for this source
+            tables = catalog.get_tables_by_source(source_name)
+            logger.info(f"Found {len(tables)} tables for source: {source_name}")
+            
+            # Initialize source based on the catalog's source configuration
+            source = source_factory(config, source_name, env)
+            
+            # Validate connection
+            logger.debug(f"Validating connection to source: {source.config.name}")
+            if not source.validate_connection():
+                raise ValueError(f"Failed to validate source connection: {source.config.name}")
+            logger.info(f"Successfully connected to database: `{source.config.name}`")
+
+            # Extract data using streaming for all tables from this source
+            for table in tables:
+                logger.info(f"Starting extraction of table: {table.name} from source: {source_name}")
+                chunk_size = config.params.chunk_size
+                row_count = 0
+                for row in source.extract(table=table, chunk_size=chunk_size):
+                    # TODO: Add logging for row processing
+                    row_count += 1
+                    if row_count % 1000 == 0:
+                        logger.info(f"Processed {row_count} rows from table: {table.name}")
+                
+                logger.info(f"Completed extraction of {row_count} rows from table: {table.name}")
+            
+            # Close the source connection after processing all its tables
+            source.close()
+            logger.info(f"Completed processing source: {source_name}")
         
     except ValueError as e:
         logger.error(f"Configuration error: {e}")
@@ -55,21 +87,19 @@ def ingest(
         sys.exit(1)
 
 
-def load_config(configPath: Path) -> Config:
+def load_yaml_model(path: Path, model_cls):
     try:
-        logger.debug("Loading configuration file: %s", str(configPath))
+        logger.debug("Loading file: %s", str(path))
         yaml_loader = YAML(typ='safe')
-        with open(configPath, "r") as f:
-            config_dict = yaml_loader.load(f)
-        # Validate and create IngestConfig instance
-        config = Config.model_validate(config_dict)
-        logger.info("Configuration file loaded and validated successfully")
-        return config
+        with open(path, "r") as f:
+            data = yaml_loader.load(f)
+        obj = model_cls.model_validate(data)
+        logger.info("File loaded and validated successfully: %s", str(path))
+        return obj
     except Exception as e:
-        logger.error("Failed to load configuration file", 
-                 config_path=str(configPath), 
-                 error=str(e))
+        logger.error("Failed to load file", file_path=str(path), error=str(e))
         sys.exit(1)
+
 
 if __name__ == "__main__":
     app()

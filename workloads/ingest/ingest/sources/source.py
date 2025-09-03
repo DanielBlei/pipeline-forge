@@ -1,69 +1,70 @@
-from typing import Optional, Any
+from typing import Optional, Protocol, runtime_checkable, Iterator
 from pydantic import BaseModel, Field, ConfigDict
-from rich.table import Table
 from ..core.config import SourceConfig
+from ..core.catalog import Table
 from ..extractors import BaseExtractor
 import logging
 
 logger = logging.getLogger(__name__)
 
+
+@runtime_checkable
+class SourceInterface(Protocol):
+    """Protocol defining the contract for any data source."""
+
+    config: SourceConfig
+    env: str
+    extractor: Optional[BaseExtractor]
+
+    def connect(self) -> None: ...
+    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[dict]: ...
+    def validate_connection(self) -> bool: ...
+    def close(self) -> None: ...
+
+
 class Source(BaseModel):
-    """Base source class with Pydantic validation and SQLAlchemy extraction."""
+    """Base implementation of the Source protocol.
+
+    This provides a concrete implementation that can be inherited from
+    or used as a reference for implementing the Source protocol.
+    """
+
     config: SourceConfig = Field(..., description="Source configuration")
     env: str = Field(..., description="Environment name (staging/production)")
     extractor: Optional[BaseExtractor] = None
     model_config = ConfigDict(arbitrary_types_allowed=True)
-   
-    def _build_connection_string(self, dialect: str, default_port: int) -> str:
-        """Build database connection string from config.
-        
-        Args:
-            dialect: SQLAlchemy dialect (e.g., 'mysql+pymysql', 'postgresql+psycopg2')
-            default_port: Default port for the database
-            
-        Returns:
-            SQLAlchemy connection string
-        """
-        host = self.config.connection.host
-        port = self.config.connection.port
-        database = self.config.connection.database
-        username = self.config.connection.username
-        password = self.config.connection.password
-        
-        return f"{dialect}://{username}:{password}@{host}:{port}/{database}"
 
     def connect(self) -> None:
         """Connect to the source."""
         if self.extractor:
-            self.extractor.connect(config=self.config)
-        logger.info(f"Connected to source: {self.config.database}")
-    
-    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Any:
+            self.extractor.connect()
+
+    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[dict]:
         """Extract data from the source using SQLAlchemy with streaming.
-        
+
         Args:
-            table: Name of the table to extract
+            table: Table object to extract from
+            chunk_size: Size of data chunks to extract
             limit: Optional limit on number of rows
-            
-        Yields:
-            Dict[str, Any] representing each row from the table
+
+        Returns:
+            Iterator yielding data extracted from the source
         """
         if not self.extractor:
             raise RuntimeError("Extractor not initialized")
         return self.extractor.extract(table=table, chunk_size=chunk_size, limit=limit)
-    
+
     def validate_connection(self) -> bool:
         """Validate connection to the source.
-        
+
         Returns:
             True if connection is valid
         """
         if not self.extractor:
             return False
         return self.extractor.validate_connection()
-    
+
     def close(self) -> None:
         """Close the source connection and clean up resources."""
         if self.extractor:
             self.extractor.close()
-        logger.info("Closed source connection")

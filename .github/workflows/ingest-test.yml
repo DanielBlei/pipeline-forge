@@ -1,0 +1,66 @@
+name: Ingest Workload Tests
+
+on:
+  push:
+    paths:
+      - "workloads/ingest/**"
+  pull_request:
+    paths:
+      - "workloads/ingest/**"
+
+jobs:
+  test:
+    name: Test Ingest Workload
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: workloads/ingest
+
+    steps:
+      - name: Clone the code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install UV package manager
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Create virtual environment
+        run: uv venv
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Cache UV dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            workloads/ingest/.venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('workloads/ingest/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Run Ruff linter
+        run: uv run ruff check .
+
+      - name: Run Ruff formatter check
+        run: uv run ruff format --check .
+
+      - name: Type check with mypy
+        run: uv run mypy .
+
+      - name: Run tests with pytest (if available)
+        run: uv run pytest . -v
+        continue-on-error: true
+
+      - name: Test package installation
+        run: |
+          uv run pip install -e .
+          uv run ingest --help

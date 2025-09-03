@@ -63,6 +63,11 @@ class BaseExtractor:
         if not self.engine:
             self.connect()  # This will retry if it fails
 
+        # Check again after connect() attempt
+        if not self.engine:
+            logger.error("Failed to establish database connection")
+            return False
+
         try:
             with self.engine.connect() as conn:
                 # Execute a simple query to test the connection
@@ -92,6 +97,11 @@ class BaseExtractor:
         """
         if not self.engine:
             self.connect()
+
+        # Check again after connect() attempt
+        if not self.engine:
+            logger.error("Failed to establish database connection")
+            raise SQLAlchemyError("Failed to establish database connection")
 
         try:
             with self.engine.connect() as conn:

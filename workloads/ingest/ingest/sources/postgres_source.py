@@ -30,10 +30,14 @@ class PostgresSource(Source):
 
     def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[dict]:
         """Extract data from PostgreSQL table."""
+        if not self.extractor:
+            raise RuntimeError("PostgreSQL extractor not initialized")
         return self.extractor.extract(table=table, chunk_size=chunk_size, limit=limit)
 
     def validate_connection(self) -> bool:
         """Validate PostgreSQL connection."""
+        if not self.extractor:
+            return False
         return self.extractor.validate_connection()
 
     def close(self) -> None:

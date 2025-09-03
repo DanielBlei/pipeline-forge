@@ -1,11 +1,12 @@
 import logging
 
+
 def setup_logging(debug: bool = False):
     logger = logging.getLogger()
     if debug:
         logger.setLevel(logging.DEBUG)
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s")
-    else: 
+    else:
         logger.setLevel(logging.INFO)
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
@@ -18,5 +19,3 @@ def setup_logging(debug: bool = False):
         for h in logger.handlers:
             h.setFormatter(formatter)
     return logger
-
-

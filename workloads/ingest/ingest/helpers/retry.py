@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 
 def retry_on_exception(retries: int = 3, delay: int = 15):
     """Retry function on exception with a delay between retries."""
-    def decorator(func):    
+
+    def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             for attempt in range(retries):
@@ -25,5 +26,7 @@ def retry_on_exception(retries: int = 3, delay: int = 15):
                         logger.error(f"All {retries} attempts failed. Final attempt:")
             # Final attempt, let exception propagate
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator

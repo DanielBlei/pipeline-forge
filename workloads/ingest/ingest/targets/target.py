@@ -1,12 +1,32 @@
-from typing import Optional, Any
-from pydantic import BaseModel, Field
+from typing import Optional, Protocol, runtime_checkable, Any
+from pydantic import BaseModel, Field, ConfigDict
 from ..core.config import BigQueryTarget as BigQueryTargetConfig
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class TargetInterface(Protocol):
+    """Protocol defining the contract for any data target."""
+
+    config: BigQueryTargetConfig
+    env: str
+
+    def load(self, data: Any, table: Optional[str] = None) -> None: ...
+    def validate_connection(self) -> bool: ...
 
 
 class Target(BaseModel):
-    """Base target class with Pydantic validation."""
+    """Base implementation of the Target protocol.
+
+    This provides a concrete implementation that can be inherited from
+    or used as a reference for implementing the Target protocol.
+    """
+
     config: BigQueryTargetConfig = Field(..., description="Target configuration")
     env: str = Field(..., description="Environment name (staging/production)")
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def load(self, data: Any, table: Optional[str] = None) -> None:
         """Load data into the target destination.

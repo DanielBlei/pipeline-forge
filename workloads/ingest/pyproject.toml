@@ -16,6 +16,9 @@ dependencies = [
     "psycopg2-binary>=2.9.10",
     "sqlalchemy>=2.0.0",
     "google-cloud-bigquery>=3.36.0",
+    "ruff>=0.8.0",
+    "mypy>=1.17.1",
+    "pytest>=8.4.1",
 ]
 
 [tool.setuptools.packages.find]

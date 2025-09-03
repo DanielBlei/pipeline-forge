@@ -20,7 +20,7 @@ class ConnectionConfig(BaseModel):
     db_schema: Optional[str] = Field(None, alias="schema")
     ssl_required: Optional[bool] = False
 
-    def build_connection_string(self, dialect: str, default_port: int = None) -> str:
+    def build_connection_string(self, dialect: str, default_port: int = 0) -> str:
         """Build database connection string from config.
 
         Args:
@@ -30,7 +30,7 @@ class ConnectionConfig(BaseModel):
         Returns:
             SQLAlchemy connection string
         """
-        port = default_port if default_port is not None else self.port
+        port = default_port if default_port != 0 else self.port
         return f"{dialect}://{self.username}:{self.password}@{self.host}:{port}/{self.database}"
 
 
@@ -87,7 +87,7 @@ class Config(BaseModel):
         if environment not in self.sources:
             return None
 
-        return self.sources.get(environment).get(source_name)
+        return self.sources[environment].get(source_name)
 
     def get_target_config(self, environment: str) -> Optional[BigQueryTarget]:
         """Get a specific target configuration by environment and name"""

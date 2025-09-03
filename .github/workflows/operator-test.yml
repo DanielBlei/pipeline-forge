@@ -1,8 +1,12 @@
-name: Tests
+name: Operator Tests
 
 on:
   push:
+    paths:
+      - "operator/**"
   pull_request:
+    paths:
+      - "operator/**"
 
 jobs:
   test:

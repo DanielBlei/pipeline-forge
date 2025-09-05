@@ -13,7 +13,6 @@ class SourceInterface(Protocol):
     """Protocol defining the contract for any data source."""
 
     config: SourceConfig
-    env: str
     extractor: Optional[BaseExtractor]
 
     def connect(self) -> None: ...
@@ -30,7 +29,6 @@ class Source(BaseModel):
     """
 
     config: SourceConfig = Field(..., description="Source configuration")
-    env: str = Field(..., description="Environment name (staging/production)")
     extractor: Optional[BaseExtractor] = None
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

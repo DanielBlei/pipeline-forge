@@ -11,13 +11,13 @@ logger = logging.getLogger(__name__)
 class MySQLSource(Source):
     """MySQL data source implementation."""
 
-    def __init__(self, config: SourceConfig, env: str):
+    def __init__(self, config: SourceConfig):
         """Initialize MySQL source with validated configuration."""
-        super().__init__(config=config, env=env)
+        super().__init__(config=config)
         logger.debug("Initialized MySQL source")
 
         # Initialize the extractor with the connection string
-        connection_string = self.config.connection.build_connection_string(dialect="mysql+pymysql", default_port=3306)
+        connection_string = self.config.build_connection_string(dialect="mysql+pymysql", default_port=3306)
         self.extractor = BaseExtractor(connection_string)
         logger.debug("Initialized BaseExtractor")
 

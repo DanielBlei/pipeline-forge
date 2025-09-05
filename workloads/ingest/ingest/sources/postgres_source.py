@@ -11,15 +11,13 @@ logger = logging.getLogger(__name__)
 class PostgresSource(Source):
     """PostgreSQL data source implementation."""
 
-    def __init__(self, config: SourceConfig, env: str):
+    def __init__(self, config: SourceConfig):
         """Initialize PostgreSQL source with validated configuration."""
-        super().__init__(config=config, env=env)
+        super().__init__(config=config)
         logger.debug("Initialized PostgreSQL source")
 
         # Initialize the extractor with the connection string
-        connection_string = self.config.connection.build_connection_string(
-            dialect="postgresql+psycopg2", default_port=5432
-        )
+        connection_string = self.config.build_connection_string(dialect="postgresql+psycopg2", default_port=5432)
         self.extractor = BaseExtractor(connection_string)
         logger.debug("Initialized BaseExtractor")
 

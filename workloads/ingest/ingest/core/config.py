@@ -1,5 +1,6 @@
 """Configuration classes for ingestion"""
 
+from typing_extensions import Union
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, List, Optional
 from enum import Enum
@@ -8,10 +9,15 @@ from enum import Enum
 class DatabaseType(str, Enum):
     MYSQL = "mysql"
     POSTGRES = "postgres"
+
+
+class TargetType(str, Enum):
     BIGQUERY = "bigquery"
 
 
-class ConnectionConfig(BaseModel):
+class SourceConfig(BaseModel):
+    name: str
+    type: DatabaseType
     host: str
     port: int
     username: str
@@ -34,33 +40,30 @@ class ConnectionConfig(BaseModel):
         return f"{dialect}://{self.username}:{self.password}@{self.host}:{port}/{self.database}"
 
 
-class SourceConfig(BaseModel):
-    name: str
-    type: DatabaseType
-    connection: ConnectionConfig
-    ssl_required: bool = False
-
-
 class BigQueryTarget(BaseModel):
     name: str
-    type: str = "bigquery"
-    project_id: str
-    dataset: str
+    type: TargetType = TargetType.BIGQUERY
+    project_id: str = Field(
+        ...,
+        pattern=r"^[a-z][a-z0-9\-]{4,28}[a-z0-9]$",
+        description="BigQuery project_id must be 6-30 characters, lowercase letters, digits or hyphens, start with a letter, end with letter or digit.",
+    )
+    dataset_id: str = Field(
+        ...,
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]{0,1023}$",
+        description="BigQuery dataset_id must be 1-1024 characters, start with a letter or underscore, contain only letters, numbers, or underscores.",
+    )
     location: Optional[str] = None
-    service_account: str
+    service_account: Optional[str] = None
+
+
+TargetTypes = Union["BigQueryTarget"]
 
 
 class RuntimeParams(BaseModel):
     retry_attempts: int = Field(ge=1, le=10, default=3)
     retry_delay_seconds: int = Field(ge=1, le=3600, default=30)
     chunk_size: int = Field(default=10000)
-
-
-class TargetConfig(BaseModel):
-    name: str
-    type: DatabaseType
-    connection: ConnectionConfig
-    ssl_required: bool = False
 
 
 class SecretConfig(BaseModel):
@@ -78,7 +81,7 @@ class Config(BaseModel):
     params: RuntimeParams
     secrets: SecretsConfig
     sources: Dict[str, Dict[str, SourceConfig]]  # environment -> source_name -> SourceConfig
-    targets: Dict[str, BigQueryTarget]
+    targets: Dict[str, TargetTypes]  # enviroument -> TargetType
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True, str_strip_whitespace=True)
 
@@ -89,7 +92,7 @@ class Config(BaseModel):
 
         return self.sources[environment].get(source_name)
 
-    def get_target_config(self, environment: str) -> Optional[BigQueryTarget]:
+    def get_target_config(self, environment: str) -> Optional[TargetTypes]:
         """Get a specific target configuration by environment and name"""
         if environment not in self.targets:
             return None

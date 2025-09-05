@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 import sys
 from typing import Any
@@ -10,15 +11,17 @@ from .sources import create_source
 from .core import Config, Catalog
 from .targets import create_target, Target
 
+logger = logging.getLogger(__name__)
+
 app = typer.Typer()
+
 
 # Module-level constants for default values
 CONFIG_PATH = typer.Option(..., "--config", "-c", help="Path to config file")
 CATALOG_PATH = typer.Option(..., "--catalog", "-cat", help="Path to catalog file")
 DEBUG_FLAG = typer.Option(False, "--debug", "-d", help="Enable debug mode")
 ENV_FLAG = typer.Option("dev", "--env", "-e", help="Environment to use")
-
-logger = setup_logging(debug=DEBUG_FLAG)
+DRY_RUN_FLAG = typer.Option(False, "--dry-run", "-dr", help="Enable dry run mode")
 
 
 @app.command()
@@ -27,6 +30,7 @@ def ingest(
     catalogPath: Path = CATALOG_PATH,
     debug: bool = DEBUG_FLAG,
     env: str = ENV_FLAG,
+    dryRun: bool = DRY_RUN_FLAG,
 ) -> int:
     """Ingest data from a source database to a target system.
 
@@ -35,18 +39,18 @@ def ingest(
         catalogPath: Path to catalog file
         debug: Enable debug mode
         env: Environment to use
-
+        dryRun: Enable dry run mode (do not load data into target)
     Returns:
         int: Exit code (0 for success, 1 for failure)
     """
     try:
-        return main(configPath, catalogPath, debug, env)
+        return main(configPath, catalogPath, debug, env, dryRun)
     except Exception as e:
         logger.error(f"Unexpected error in main: {e}")
         return 1
 
 
-def main(config_path: Path, catalog_path: Path, debug: bool, env: str) -> int:
+def main(config_path: Path, catalog_path: Path, debug: bool, env: str, dryRun: bool) -> int:
     """Main entry point for the ingestion process.
 
     Args:
@@ -54,12 +58,12 @@ def main(config_path: Path, catalog_path: Path, debug: bool, env: str) -> int:
         catalog_path: Path to catalog file
         debug: Enable debug mode
         env: Environment to use
-
+        dryRun: Enable dry run mode (do not load data into target)
     Returns:
         int: Exit code (0 for success, 1 for failure)
     """
     # Initialize logger with the debug parameter
-    logger = setup_logging(debug=debug)
+    setup_logging(__package__, debug=debug)
     logger.info("Starting ingestion process")
 
     if env.lower() not in ["dev", "prod"]:
@@ -69,13 +73,13 @@ def main(config_path: Path, catalog_path: Path, debug: bool, env: str) -> int:
         config = load_yaml_model(config_path, Config)
         catalog = load_yaml_model(catalog_path, Catalog)
 
-        target = create_and_validate_target(config.targets[env], env, logger)
+        target = create_target(config.targets.get(env))
 
         # Process each unique source
         sources = catalog.get_sources()
         for source_name in sources:
             try:
-                process_source(source_name, target, config, catalog, env, logger)
+                process_source(source_name, target, config, catalog, env, logger, dryRun)
             except Exception as e:
                 logger.error(f"Failed to process source {source_name}: {e}")
                 continue  # TODO: add a flag to halt the process if desired
@@ -85,14 +89,16 @@ def main(config_path: Path, catalog_path: Path, debug: bool, env: str) -> int:
         return 0
 
     except ValueError as e:
-        logger.error(f"Configuration error: {e}")
+        logger.error(f"Configuration error: {e}", exc_info=True)
         return 1
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        logger.error(f"Unexpected error: {e}", exc_info=True)
         return 1
 
 
-def process_source(source_name: str, target: Target, config: Config, catalog: Catalog, env: str, logger) -> None:
+def process_source(
+    source_name: str, target: Target, config: Config, catalog: Catalog, env: str, logger, dryRun: bool
+) -> None:
     """Process one source and all its tables.
 
     Args:
@@ -102,26 +108,27 @@ def process_source(source_name: str, target: Target, config: Config, catalog: Ca
         catalog: Catalog object containing table definitions
         env: Environment to use
         logger: Logger instance
+        dryRun: Enable dry run mode (do not load data into target)
     """
     # Get all tables for this source
     tables = catalog.get_tables_by_source(source_name)
     logger.info(f"Processing source '{source_name}' with {len(tables)} tables")
 
     source_config = config.get_source_config(env, source_name)
-    source = create_and_validate_source(source_name, source_config, env, logger)
+    source = create_source(source_config)
     try:
         # Process each table from this source
         for table in tables:
             try:
-                process_table(source, target, table, config.params.chunk_size, logger)
+                process_table(source, target, table, config.params.chunk_size, logger, dryRun)
             except Exception as e:
-                logger.error(f"Failed to process table {table.name}: {e}")
+                logger.error(f"Failed to process table {table.name}: {e}", exc_info=True)
                 continue  # TODO: add a flag to halt the process if desired
     finally:
         source.close()
 
 
-def process_table(source, target, table, chunk_size: int, logger) -> None:
+def process_table(source, target, table, chunk_size: int, logger, dryRun: bool) -> None:
     """Process one table's extraction and loading.
 
     Args:
@@ -130,57 +137,19 @@ def process_table(source, target, table, chunk_size: int, logger) -> None:
         table: Table definition to process
         chunk_size: Size of data chunks to process
         logger: Logger instance
+        dryRun: Enable dry run mode (do not load data into target)
     """
     chunk_count = 0
     for chunk in source.extract(table=table, chunk_size=chunk_size):
         chunk_count += 1
+        if dryRun:
+            logger.info(f"Dry run mode: Would have loaded chunk {chunk_count} from table '{table.name}'")
+            continue
+
         target.load(chunk, table.name)
         logger.info(f"Loaded chunk {chunk_count} from table '{table.name}'")
 
     logger.info(f"Completed table '{table.name}': {chunk_count} chunks processed")
-
-
-def create_and_validate_source(source_name: str, source_config, env: str, logger):
-    """Create and validate a source connection.
-
-    Args:
-        source_name: Name of the source
-        source_config: Source configuration
-        env: Environment to use
-        logger: Logger instance
-
-    Returns:
-        Source instance with validated connection
-
-    Raises:
-        ValueError: If source connection validation fails
-    """
-    source = create_source(source_config, env)
-    if not source.validate_connection():
-        raise ValueError(f"Failed to validate source connection: {source.config.name}")
-    logger.info(f"Connected to source: {source.config.name}")
-    return source
-
-
-def create_and_validate_target(target_config, env: str, logger):
-    """Create and validate a target connection.
-
-    Args:
-        target_config: Target configuration
-        env: Environment to use
-        logger: Logger instance
-
-    Returns:
-        Target instance with validated connection
-
-    Raises:
-        ValueError: If target connection validation fails
-    """
-    target = create_target(target_config, env)
-    if not target.validate_connection():
-        raise ValueError(f"Failed to validate target connection: {target.config.name}")
-    logger.debug(f"Targer is initialized: {target.config.name}")
-    return target
 
 
 def load_yaml_model(path: Path, model_cls) -> Any:

@@ -1,6 +1,6 @@
 from typing import Optional, Protocol, runtime_checkable, Any
 from pydantic import BaseModel, Field, ConfigDict
-from ..core.config import BigQueryTarget as BigQueryTargetConfig
+from ..core.config import TargetTypes
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,8 +10,7 @@ logger = logging.getLogger(__name__)
 class TargetInterface(Protocol):
     """Protocol defining the contract for any data target."""
 
-    config: BigQueryTargetConfig
-    env: str
+    config: TargetTypes
 
     def load(self, data: Any, table: Optional[str] = None) -> None: ...
     def validate_connection(self) -> bool: ...
@@ -24,8 +23,7 @@ class Target(BaseModel):
     or used as a reference for implementing the Target protocol.
     """
 
-    config: BigQueryTargetConfig = Field(..., description="Target configuration")
-    env: str = Field(..., description="Environment name (staging/production)")
+    config: TargetTypes = Field(..., description="Target configuration")
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def load(self, data: Any, table: Optional[str] = None) -> None:

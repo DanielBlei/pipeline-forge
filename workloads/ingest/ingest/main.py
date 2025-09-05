@@ -8,8 +8,9 @@ import typer  # type: ignore
 from ruamel.yaml import YAML  # type: ignore
 from .log import setup_logging
 from .sources import create_source
-from .core import Config, Catalog
-from .targets import create_target, Target
+from .core import Config, Catalog, Table
+from .sources import SourceInterface
+from .targets import create_target, TargetInterface
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ def main(config_path: Path, catalog_path: Path, debug: bool, env: str, dryRun: b
         sources = catalog.get_sources()
         for source_name in sources:
             try:
-                process_source(source_name, target, config, catalog, env, logger, dryRun)
+                process_source(source_name, target, config, catalog, env, dryRun)
             except Exception as e:
                 logger.error(f"Failed to process source {source_name}: {e}")
                 continue  # TODO: add a flag to halt the process if desired
@@ -97,7 +98,7 @@ def main(config_path: Path, catalog_path: Path, debug: bool, env: str, dryRun: b
 
 
 def process_source(
-    source_name: str, target: Target, config: Config, catalog: Catalog, env: str, logger, dryRun: bool
+    source_name: str, target: TargetInterface, config: Config, catalog: Catalog, env: str, dryRun: bool
 ) -> None:
     """Process one source and all its tables.
 
@@ -107,7 +108,6 @@ def process_source(
         config: Configuration object
         catalog: Catalog object containing table definitions
         env: Environment to use
-        logger: Logger instance
         dryRun: Enable dry run mode (do not load data into target)
     """
     # Get all tables for this source
@@ -115,12 +115,14 @@ def process_source(
     logger.info(f"Processing source '{source_name}' with {len(tables)} tables")
 
     source_config = config.get_source_config(env, source_name)
+    if source_config is None:
+        raise ValueError(f"No source configuration found for '{source_name}' in environment '{env}'")
     source = create_source(source_config)
     try:
         # Process each table from this source
         for table in tables:
             try:
-                process_table(source, target, table, config.params.chunk_size, logger, dryRun)
+                process_table(source, target, table, config.params.chunk_size, dryRun)
             except Exception as e:
                 logger.error(f"Failed to process table {table.name}: {e}", exc_info=True)
                 continue  # TODO: add a flag to halt the process if desired
@@ -128,7 +130,9 @@ def process_source(
         source.close()
 
 
-def process_table(source, target, table, chunk_size: int, logger, dryRun: bool) -> None:
+def process_table(
+    source: SourceInterface, target: TargetInterface, table: Table, chunk_size: int, dryRun: bool
+) -> None:
     """Process one table's extraction and loading.
 
     Args:
@@ -136,7 +140,6 @@ def process_table(source, target, table, chunk_size: int, logger, dryRun: bool) 
         target: Target instance for data loading
         table: Table definition to process
         chunk_size: Size of data chunks to process
-        logger: Logger instance
         dryRun: Enable dry run mode (do not load data into target)
     """
     chunk_count = 0
@@ -145,8 +148,8 @@ def process_table(source, target, table, chunk_size: int, logger, dryRun: bool) 
         if dryRun:
             logger.info(f"Dry run mode: Would have loaded chunk {chunk_count} from table '{table.name}'")
             continue
-
-        target.load(chunk, table.name)
+        destination_table = f"{target.config.dataset_id}.{table.name}"
+        target.load(data=chunk, target_table=destination_table, write_disposition=table.replication)
         logger.info(f"Loaded chunk {chunk_count} from table '{table.name}'")
 
     logger.info(f"Completed table '{table.name}': {chunk_count} chunks processed")
@@ -172,7 +175,7 @@ def load_yaml_model(path: Path, model_cls) -> Any:
         obj = model_cls.model_validate(data)
         return obj
     except Exception as e:
-        logger.error("Failed to load file", file_path=str(path), error=str(e))
+        logger.error(f"Failed to load file {path}: {e}")
         sys.exit(1)
 
 

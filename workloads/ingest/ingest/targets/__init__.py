@@ -2,7 +2,7 @@ import logging
 
 from .target import Target, TargetInterface
 from .bigquery import BigQueryTarget
-from ..core.config import BigQueryTarget as BigQueryTargetConfig
+from ..core.config import BigQueryTargetConfig
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ def create_target(target_config: BigQueryTargetConfig) -> TargetInterface:
         ValueError: If target type is not supported or connection validation fails
     """
     # Create the target instance
+    target: TargetInterface
     if target_config.type in {"bigquery", "bq", "google_bigquery"}:
         target = BigQueryTarget(target_config)
     else:

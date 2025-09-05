@@ -1,11 +1,18 @@
+from ..core.catalog import ReplicationType
 from .target import Target
-from typing import Any, Optional
-from ..core.config import BigQueryTarget
+from typing import Optional
+from ..core.config import BigQueryTargetConfig
 import logging
 from google.cloud import bigquery
 from pydantic import Field
 
 logger = logging.getLogger(__name__)
+
+map_replication_type_to_write_disposition = {
+    ReplicationType.TRUNCATE: bigquery.WriteDisposition.WRITE_TRUNCATE,
+    ReplicationType.APPEND: bigquery.WriteDisposition.WRITE_APPEND,
+    ReplicationType.UPSERT: bigquery.WriteDisposition.WRITE_APPEND,
+}
 
 
 class BigQueryTarget(Target):
@@ -13,7 +20,7 @@ class BigQueryTarget(Target):
 
     client: Optional[bigquery.Client] = Field(default=None, exclude=True)
 
-    def __init__(self, config: BigQueryTarget, **data):
+    def __init__(self, config: BigQueryTargetConfig, **data):
         """Initialize BigQuery target with validated configuration."""
         super().__init__(config=config)
         self.client: Optional[bigquery.Client] = None
@@ -28,15 +35,32 @@ class BigQueryTarget(Target):
             raise e
         return client
 
-    def load(self, data: Any, table: Optional[str] = None) -> None:
+    def _get_write_disposition(self, write_disposition: ReplicationType) -> bigquery.WriteDisposition:
+        """Get the write disposition for the data."""
+        if write_disposition not in map_replication_type_to_write_disposition:
+            raise ValueError(f"Invalid write disposition: {write_disposition}")
+        return map_replication_type_to_write_disposition[write_disposition]
+
+    def load(self, data: list[dict], target_table: str, write_disposition: ReplicationType) -> None:
         """Load data into BigQuery.
 
         Args:
             data: The data to be ingested
-            table: Optional override for the target table name
+            target_table: Target table name for the data
+            write_disposition: Write disposition for the data
         """
-        # TODO: Implement loading logic to BigQuery
-        logger.debug(f"Loading data to BigQuery table: {table or 'default'}")
+        # Call Target base class validation logic first
+        super().load(data, target_table, write_disposition)
+        job_config = bigquery.LoadJobConfig(
+            write_disposition=self._get_write_disposition(write_disposition),
+        )
+        self.client.load_table_from_json(
+            json_rows=data,
+            destination=target_table,
+            job_config=job_config,
+        )
+
+        logger.debug(f"Loading data to BigQuery table: {target_table}")
         return None
 
     def validate_connection(self) -> bool:

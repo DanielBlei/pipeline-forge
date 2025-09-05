@@ -1,6 +1,6 @@
 """Core package for pipeline-forge ingest functionality."""
 
-from .config import Config, SourceConfig, RuntimeParams, SecretsConfig, DatabaseType, BigQueryTarget
+from .config import Config, SourceConfig, RuntimeParams, SecretsConfig, DatabaseType, BigQueryTargetConfig
 
 from .catalog import Catalog, Table, Column, ReplicationType
 
@@ -11,7 +11,7 @@ __all__ = [
     "RuntimeParams",
     "SecretsConfig",
     "DatabaseType",
-    "BigQueryTarget",
+    "BigQueryTargetConfig",
     # Catalog models
     "Catalog",
     "Table",

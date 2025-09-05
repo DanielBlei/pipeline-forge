@@ -40,7 +40,7 @@ class SourceConfig(BaseModel):
         return f"{dialect}://{self.username}:{self.password}@{self.host}:{port}/{self.database}"
 
 
-class BigQueryTarget(BaseModel):
+class BigQueryTargetConfig(BaseModel):
     name: str
     type: TargetType = TargetType.BIGQUERY
     project_id: str = Field(
@@ -57,7 +57,7 @@ class BigQueryTarget(BaseModel):
     service_account: Optional[str] = None
 
 
-TargetTypes = Union["BigQueryTarget"]
+TargetTypes = Union["BigQueryTargetConfig"]
 
 
 class RuntimeParams(BaseModel):

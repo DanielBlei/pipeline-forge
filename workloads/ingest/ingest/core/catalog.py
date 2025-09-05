@@ -27,7 +27,7 @@ class Table(BaseModel):
         default=None,
         description="Source name for this table, matching the source name in the config. If not set, defaults to the catalog's source.",
     )
-    replication: ReplicationType
+    replication: ReplicationType = Field(..., description="Replication method (TRUNCATE, APPEND, UPSERT)")
     columns: list[Column]
 
 

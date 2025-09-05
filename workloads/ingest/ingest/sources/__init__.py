@@ -21,6 +21,7 @@ def create_source(source_config: SourceConfig) -> SourceInterface:
         ValueError: If source type is not supported or connection validation fails
     """
     # Create the source instance
+    source: SourceInterface
     if source_config.type.value == "mysql":
         source = MySQLSource(source_config)
     elif source_config.type.value == "postgres":

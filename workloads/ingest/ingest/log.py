@@ -1,7 +1,8 @@
 import logging
+from typing import Optional
 
 
-def setup_logging(name: str = None, debug: bool = False):
+def setup_logging(name: Optional[str] = None, debug: bool = False):
     """Setup logging for the application.
 
     Args:

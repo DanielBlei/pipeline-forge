@@ -28,6 +28,14 @@ dev-cleanup: ## Clean up development environment (containers, volumes, networks)
 	docker volume ls | grep -E "(dev_|pipeline-forge)" | awk '{print $$2}' | xargs -r docker volume rm
 	docker ps -a | grep -E "(pipeline-forge|mysql|postgres)" | awk '{print $$1}' | xargs -r docker rm -f
 
+.PHONE: apply-sandbox-tf
+apply-sandbox-tf: ## Apply the development infrastructure
+	terraform -chdir=infrastructure/gcloud/sandbox init
+	terraform -chdir=infrastructure/gcloud/sandbox apply
+
+.PHONE: destroy-sandbox-tf
+destroy-sandbox-tf: ## Destroy the development infrastructure
+	terraform -chdir=infrastructure/gcloud/sandbox destroy
 
 ##@ Operator Development
 

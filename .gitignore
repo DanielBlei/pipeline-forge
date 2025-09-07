@@ -23,6 +23,12 @@ coverage.*
 go.work
 go.work.sum
 
+# t
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+
 # ========================================
 # Kubebuilder / Controller Tools
 # ========================================

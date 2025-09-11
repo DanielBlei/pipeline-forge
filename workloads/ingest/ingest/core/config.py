@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, List, Optional
 from enum import Enum
 
+from ingest.helpers.secret_handler import get_gcloud_secret
+
 
 class DatabaseType(str, Enum):
     MYSQL = "mysql"
@@ -21,7 +23,7 @@ class SourceConfig(BaseModel):
     host: str
     port: int
     username: str
-    password: str  # Will be resolved from env or secret manager
+    password: str = Field(..., description="Either refer to a secret name in the Secrets section")
     database: str
     db_schema: Optional[str] = Field(None, alias="schema")
     ssl_required: Optional[bool] = False
@@ -48,6 +50,10 @@ class BigQueryTargetConfig(BaseModel):
         pattern=r"^[a-z][a-z0-9\-]{4,28}[a-z0-9]$",
         description="BigQuery project_id must be 6-30 characters, lowercase letters, digits or hyphens, start with a letter, end with letter or digit.",
     )
+    project_number: int = Field(
+        ...,
+        description="BigQuery project_number must be a valid project number.",
+    )
     dataset_id: str = Field(
         ...,
         pattern=r"^[A-Za-z_][A-Za-z0-9_]{0,1023}$",
@@ -66,20 +72,28 @@ class RuntimeParams(BaseModel):
     chunk_size: int = Field(default=10000)
 
 
+class SecretProvider(str, Enum):
+    GOOGLE_SECRET_MANAGER = "gcloud"
+    # AWS_SECRET_MANAGER = "aws"
+    # AZURE_KEY_VAULT = "azure"
+
+
 class SecretConfig(BaseModel):
-    name: str
-    path: str
-
-
-class SecretsConfig(BaseModel):
-    provider: str
-    secrets: List[SecretConfig]
+    provider: SecretProvider = Field(
+        default=SecretProvider.GOOGLE_SECRET_MANAGER, description="Secret Manager Provider"
+    )
+    name: str = Field(description="Secret name")
+    version: Optional[str] = Field(default="latest", description="Secret version")
+    secret_path: Optional[str] = Field(
+        default=None,
+        description="Secret path in the Gcloud Secret Manager(e.g projects/pipeline-forge/secrets/postgres-password)",
+    )
 
 
 class Config(BaseModel):
     version: str
     params: RuntimeParams
-    secrets: SecretsConfig
+    secrets: List[SecretConfig]
     sources: Dict[str, Dict[str, SourceConfig]]  # environment -> source_name -> SourceConfig
     targets: Dict[str, TargetTypes]  # enviroument -> TargetType
 
@@ -98,3 +112,23 @@ class Config(BaseModel):
             return None
 
         return self.targets.get(environment)
+
+    def get_gcloud_secret_value(self, secret_name: str, environment: str, version: Optional[str] = "latest") -> str:
+        """Get a secret from the Gcloud Secret Manager"""
+        if secret_name not in [secret.name for secret in self.secrets]:
+            raise ValueError(f"Secret {secret_name} not found in secrets")
+
+        secret_config = next(secret for secret in self.secrets if secret.name == secret_name)
+        if secret_config.provider != SecretProvider.GOOGLE_SECRET_MANAGER:
+            raise ValueError(f"Secret {secret_name} is not a Gcloud Secret")
+    
+        if secret_config.secret_path is None:
+            target_config = self.targets.get(environment)
+            if target_config is None:
+                raise ValueError(f"Target config not found for environment {environment}")
+
+            secret_path = f"projects/{target_config.project_number}/secrets/{secret_name}/versions/{version}"
+        else:
+            secret_path = secret_config.secret_path
+
+        return get_gcloud_secret(secret_path)

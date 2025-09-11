@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 from typing import Any
 
+from pydantic.types import T
 import typer  # type: ignore
 
 from ruamel.yaml import YAML  # type: ignore
@@ -82,7 +83,7 @@ def main(config_path: Path, catalog_path: Path, debug: bool, env: str, dryRun: b
             try:
                 process_source(source_name, target, config, catalog, env, dryRun)
             except Exception as e:
-                logger.error(f"Failed to process source {source_name}: {e}")
+                logger.error(f"Failed to process source {source_name}: {e}", exc_info=True)
                 continue  # TODO: add a flag to halt the process if desired
             logger.info(f"Ingested data from source '{source_name}'")
 
@@ -117,6 +118,10 @@ def process_source(
     source_config = config.get_source_config(env, source_name)
     if source_config is None:
         raise ValueError(f"No source configuration found for '{source_name}' in environment '{env}'")
+
+    # Set the password from the secret BEFORE creating the source
+    source_config.password = config.get_gcloud_secret_value(source_config.password, env)
+    
     source = create_source(source_config)
     try:
         # Process each table from this source

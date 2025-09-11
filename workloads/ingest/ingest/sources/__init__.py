@@ -1,11 +1,12 @@
 import logging
+from typing import Optional
 
 from .mysql_source import MySQLSource
 from .postgres_source import PostgresSource
 from .source import SourceInterface
 from ..core.config import SourceConfig
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)    
 
 
 def create_source(source_config: SourceConfig) -> SourceInterface:

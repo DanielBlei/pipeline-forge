@@ -17,7 +17,7 @@ class MySQLSource(Source):
         logger.debug("Initialized MySQL source")
 
         # Initialize the extractor with the connection string
-        connection_string = self.config.build_connection_string(dialect="mysql+pymysql", default_port=3306)
+        connection_string = self.config.build_connection_string(dialect="mysql+pymysql", ext_password=self.config.password, default_port=3306)
         self.extractor = BaseExtractor(connection_string)
         logger.debug("Initialized BaseExtractor")
 

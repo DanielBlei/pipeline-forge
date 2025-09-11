@@ -21,6 +21,7 @@ dependencies = [
     "pytest>=8.4.1",
     "opentelemetry-api>=1.36.0",
     "opentelemetry-instrumentation>=0.57b0",
+    "google-cloud-secret-manager>=2.24.0",
 ]
 
 [tool.setuptools.packages.find]

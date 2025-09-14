@@ -14,6 +14,8 @@
 - **[📥 Ingest Workload](workloads/ingest/README.md)** - Type-safe data ingestion (Python)
 - **[🔄 Transform Workload](workloads/transform/README.md)** - dbt-based data transformation
 - **[⚡ Trigger Workload](workloads/trigger/README.md)** - Event-driven pipeline activation (Go)
+- **[🛠️ Development Environment](dev/README.md)** - Local development setup and database provisioning
+- **[☁️ Infrastructure](infrastructure/README.md)** - Cloud infrastructure automation and deployment
 - **[📋 Examples](docs/examples.md)** - Comprehensive YAML examples and use cases
 
 ---
@@ -52,26 +54,18 @@ Pipeline Forge consists of two main components:
 
 ## 🛠️ Technology Stack
 
-| Component     | Technology                    | Purpose                                   |
-| ------------- | ----------------------------- | ----------------------------------------- |
-| **Operator**  | Go, Kubernetes, Kubebuilder   | Pipeline orchestration and CRD management |
-| **Ingest**    | Python 3.13+, Pydantic, Typer | Type-safe data ingestion with validation  |
-| **Transform** | dbt Core, BigQuery            | Data transformation and analytics         |
-| **Triggers**  | Go, Google Cloud APIs         | Event-driven pipeline activation          |
+| Component           | Technology                    | Purpose                                   |
+| ------------------- | ----------------------------- | ----------------------------------------- |
+| **Operator**        | Go, Kubernetes, Kubebuilder   | Pipeline orchestration and CRD management |
+| **Ingest**          | Python 3.13+, Pydantic, Typer | Type-safe data ingestion with validation  |
+| **Transform**       | dbt Core, BigQuery            | Data transformation and analytics         |
+| **Triggers**        | Go, Google Cloud APIs         | Event-driven pipeline activation          |
+| **Dev Environment** | Docker Compose, SQL           | Local development and testing             |
+| **Infrastructure**  | Terraform, GCP                | Cloud infrastructure automation           |
 
-## 🚀 Quick Start
+## 📊 Project Overview
 
-```bash
-git clone https://github.com/DanielBlei/pipeline-forge.git
-
-# Run the operator (safety check ensures you're on kind/minikube cluster)
-make run-operator
-
-# Deploy k8s samples resources
-make apply-samples
-```
-
-## 📁 Project Structure
+### 📁 Structure
 
 ```
 pipeline-forge/
@@ -80,25 +74,32 @@ pipeline-forge/
 │   ├── ingest/        # Type-safe ingestion (Python)
 │   ├── transform/     # dbt transformations
 │   └── trigger/       # Event processing (Go)
+├── dev/               # Development environment setup
+├── infrastructure/    # Cloud infrastructure automation
 └── docs/              # Documentation
 ```
 
-## 🤝 Contributing
+### 🚧 Status
 
-We welcome contributions! See individual component READMEs for development setup and guidelines.
+**Current State**: Work in Progress
+
+| Component                      | Status                | Description                                     |
+| ------------------------------ | --------------------- | ----------------------------------------------- |
+| **🎛️ Operator API**            | ⚡ **Functional**     | CRD definitions and API contracts               |
+| **🎛️ Operator Reconciliation** | 🚧 **In Development** | Pipeline orchestration and lifecycle management |
+| **📥 Ingest Workload**         | ⚡ **Functional**     | Type-safe data ingestion (Python) - Working     |
+| **🔄 Transform Workload**      | 🚧 **In Development** | dbt-based data transformation                   |
+| **⚡ Trigger Workload**        | 🚧 **In Development** | Event-driven pipeline activation (Go)           |
 
 ## 📄 License
 
-Copyright 2025 Daniel Blei.
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+## 🤝 Contributing
 
-    http://www.apache.org/licenses/LICENSE-2.0
+Contributions are welcome! Please open an issue first to discuss any changes before submitting a pull request.
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+## ⚠️ Disclaimer
+
+This is a personal open-source project, developed independently on my own time and equipment.  
+It is **not affiliated with, endorsed by, or representing my employer**.

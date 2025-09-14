@@ -129,7 +129,7 @@ def process_source(
     source_config.password = config.get_gcloud_secret_value(source_config.password, env)
 
     source = create_source(
-        source_config, retry_attempts=config.params.retry_attempts, retry_delay=config.params.retry_delay
+        source_config, retry_attempts=config.params.retry_attempts, retry_delay=config.params.retry_delay_seconds
     )
     try:
         # Process each table from this source

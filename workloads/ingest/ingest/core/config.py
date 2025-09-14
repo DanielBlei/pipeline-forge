@@ -10,20 +10,20 @@ from ingest.helpers.secret_handler import get_gcloud_secret
 
 class DatabaseType(str, Enum):
     """Database type enumeration."""
-    
+
     MYSQL = "mysql"
     POSTGRES = "postgres"
 
 
 class TargetType(str, Enum):
     """Target type enumeration."""
-    
+
     BIGQUERY = "bigquery"
 
 
 class SourceConfig(BaseModel):
     """Source database configuration."""
-    
+
     name: str
     type: DatabaseType
     host: str
@@ -51,7 +51,7 @@ class SourceConfig(BaseModel):
 
 class BigQueryTargetConfig(BaseModel):
     """BigQuery target configuration."""
-    
+
     name: str
     type: TargetType = TargetType.BIGQUERY
     project_id: str = Field(
@@ -77,7 +77,7 @@ TargetTypes = Union["BigQueryTargetConfig"]
 
 class RuntimeParams(BaseModel):
     """Runtime parameters for ingestion process."""
-    
+
     retry_attempts: int = Field(ge=1, le=10, default=3)
     retry_delay_seconds: int = Field(ge=1, le=3600, default=30)
     chunk_size: int = Field(default=10000)
@@ -85,7 +85,7 @@ class RuntimeParams(BaseModel):
 
 class SecretProvider(str, Enum):
     """Secret provider enumeration."""
-    
+
     GOOGLE_SECRET_MANAGER = "gcloud"
     # AWS_SECRET_MANAGER = "aws"
     # AZURE_KEY_VAULT = "azure"
@@ -93,7 +93,7 @@ class SecretProvider(str, Enum):
 
 class SecretConfig(BaseModel):
     """Secret configuration."""
-    
+
     provider: SecretProvider = Field(
         default=SecretProvider.GOOGLE_SECRET_MANAGER, description="Secret Manager Provider"
     )
@@ -107,7 +107,7 @@ class SecretConfig(BaseModel):
 
 class Config(BaseModel):
     """Main configuration class."""
-    
+
     version: str
     params: RuntimeParams
     secrets: List[SecretConfig]

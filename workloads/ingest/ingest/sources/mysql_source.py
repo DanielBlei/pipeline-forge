@@ -1,6 +1,6 @@
 """MySQL source implementation."""
 
-from typing import Optional, Iterator
+from typing import Optional, Iterator, List
 from .source import Source
 from ..extractors import BaseExtractor
 from ..core.config import SourceConfig
@@ -29,7 +29,7 @@ class MySQLSource(Source):
         super().connect()
         logger.debug("MySQL source connected via BaseExtractor")
 
-    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[dict]:
+    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[List[dict]]:
         """Extract data from MySQL table."""
         if not self.extractor:
             raise RuntimeError("MySQL extractor not initialized")

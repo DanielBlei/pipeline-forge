@@ -38,7 +38,7 @@ class BigQueryTarget(Target):
             raise e
         return client
 
-    def _get_write_disposition(self, write_disposition: ReplicationType) -> bigquery.WriteDisposition:
+    def _get_write_disposition(self, write_disposition: ReplicationType) -> str:
         """Get the write disposition for the data."""
         if write_disposition not in map_replication_type_to_write_disposition:
             raise ValueError(f"Invalid write disposition: {write_disposition}")

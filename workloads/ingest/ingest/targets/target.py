@@ -15,9 +15,10 @@ class TargetInterface(Protocol):
 
     config: TargetTypes
 
-    def load(self, data: list[dict], target_table: str) -> None:
+    def load(self, data: list[dict], target_table: str, write_disposition: ReplicationType) -> None:
         """Load data into the target."""
         ...
+
     def validate_connection(self) -> bool:
         """Validate the connection to the target."""
         ...

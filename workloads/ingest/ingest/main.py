@@ -3,7 +3,6 @@ from pathlib import Path
 import sys
 from typing import Any
 
-from pydantic.types import T
 import typer  # type: ignore
 
 from ruamel.yaml import YAML  # type: ignore
@@ -121,8 +120,10 @@ def process_source(
 
     # Set the password from the secret BEFORE creating the source
     source_config.password = config.get_gcloud_secret_value(source_config.password, env)
-    
-    source = create_source(source_config)
+
+    source = create_source(
+        source_config, retry_attempts=config.params.retry_attempts, retry_delay=config.params.retry_delay
+    )
     try:
         # Process each table from this source
         for table in tables:

@@ -1,19 +1,20 @@
 import logging
-from typing import Optional
 
 from .mysql_source import MySQLSource
 from .postgres_source import PostgresSource
 from .source import SourceInterface
 from ..core.config import SourceConfig
 
-logger = logging.getLogger(__name__)    
+logger = logging.getLogger(__name__)
 
 
-def create_source(source_config: SourceConfig) -> SourceInterface:
+def create_source(source_config: SourceConfig, retry_attempts: int = 3, retry_delay: int = 15) -> SourceInterface:
     """Create and validate a source instance based on configuration.
 
     Args:
         source_config: Source configuration object
+        retry_attempts: Number of retry attempts for connection
+        retry_delay: Delay between retries in seconds
 
     Returns:
         Validated source instance implementing SourceInterface
@@ -24,9 +25,9 @@ def create_source(source_config: SourceConfig) -> SourceInterface:
     # Create the source instance
     source: SourceInterface
     if source_config.type.value == "mysql":
-        source = MySQLSource(source_config)
+        source = MySQLSource(source_config, retry_attempts=retry_attempts, retry_delay=retry_delay)
     elif source_config.type.value == "postgres":
-        source = PostgresSource(source_config)
+        source = PostgresSource(source_config, retry_attempts=retry_attempts, retry_delay=retry_delay)
     else:
         raise ValueError(f"Unsupported source type: {source_config.type}")
 

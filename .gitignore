@@ -86,6 +86,8 @@ Thumbs.db
 .cursor/
 .cursorignore
 .ruff_cache/
+.coverage
+.htmlcov/
 
 # JetBrains & VSCode specific settings
 *.iml

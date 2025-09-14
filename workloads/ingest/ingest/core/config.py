@@ -121,7 +121,7 @@ class Config(BaseModel):
         secret_config = next(secret for secret in self.secrets if secret.name == secret_name)
         if secret_config.provider != SecretProvider.GOOGLE_SECRET_MANAGER:
             raise ValueError(f"Secret {secret_name} is not a Gcloud Secret")
-    
+
         if secret_config.secret_path is None:
             target_config = self.targets.get(environment)
             if target_config is None:

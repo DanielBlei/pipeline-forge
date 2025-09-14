@@ -7,8 +7,8 @@ from enum import Enum
 class Column(BaseModel):
     """Column class for storing the schema of the data"""
 
-    name: str
-    type: str
+    name: str = Field(min_length=1)
+    type: str = Field(min_length=1)
 
 
 class ReplicationType(str, Enum):
@@ -22,7 +22,7 @@ class ReplicationType(str, Enum):
 class Table(BaseModel):
     """Table class for storing the schema of the data"""
 
-    name: str
+    name: str = Field(min_length=1)
     source: str | None = Field(
         default=None,
         description="Source name for this table, matching the source name in the config. If not set, defaults to the catalog's source.",

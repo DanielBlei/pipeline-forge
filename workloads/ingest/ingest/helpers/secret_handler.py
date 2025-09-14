@@ -1,8 +1,10 @@
 """Secret Handler for the ingest workload"""
+
 import logging
 from google.cloud import secretmanager
 
 logger = logging.getLogger(__name__)
+
 
 def get_gcloud_secret(secret_name: str) -> str:
     """Get a secret from the Gcloud Secret Manager"""

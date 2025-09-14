@@ -30,6 +30,8 @@ class Source(BaseModel):
 
     config: SourceConfig = Field(..., description="Source configuration")
     extractor: Optional[BaseExtractor] = None
+    retry_attempts: int = 3
+    retry_delay: int = 15
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def connect(self) -> None:

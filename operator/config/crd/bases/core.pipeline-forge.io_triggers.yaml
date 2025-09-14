@@ -229,6 +229,11 @@ spec:
                   For example: "*/5 * * * *" (every 5 minutes)
                   Use standard cron syntax.
                 type: string
+              suspend:
+                description: |-
+                  Suspend indicates whether the trigger is currently suspended.
+                  If true, the controller will not process the trigger.
+                type: boolean
               type:
                 description: |-
                   Type specifies the kind of event that will activate this trigger.

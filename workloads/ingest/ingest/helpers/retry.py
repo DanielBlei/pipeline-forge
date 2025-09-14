@@ -19,6 +19,7 @@ def retry_on_exception(retries: int = 3, delay: int = 15, retries_attr="retry_at
         delay: Static delay in seconds (used if instance doesn't have delay_attr)
         retries_attr: Name of instance attribute for retry count (default: 'retry_attempts')
         delay_attr: Name of instance attribute for delay (default: 'retry_delay')
+
     """
 
     def decorator(func):

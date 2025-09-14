@@ -1,7 +1,10 @@
+"""BigQuery target implementation."""
+
 from ..core.catalog import ReplicationType
 from .target import Target
 from typing import Optional
 from ..core.config import BigQueryTargetConfig
+
 import logging
 from google.cloud import bigquery
 from pydantic import Field
@@ -48,6 +51,7 @@ class BigQueryTarget(Target):
             data: The data to be ingested
             target_table: Target table name for the data
             write_disposition: Write disposition for the data
+
         """
         # Call Target base class validation logic first
         super().load(data, target_table, write_disposition)
@@ -74,6 +78,7 @@ class BigQueryTarget(Target):
 
         Returns:
             True if connection is valid
+
         """
         if not self.client:
             self.client = self._build_client()

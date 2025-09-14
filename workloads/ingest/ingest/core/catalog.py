@@ -1,18 +1,18 @@
-"""Catalog class for storing the schema of the data"""
+"""Catalog class for storing the schema of the data."""
 
 from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
 
 class Column(BaseModel):
-    """Column class for storing the schema of the data"""
+    """Column class for storing the schema of the data."""
 
     name: str = Field(min_length=1)
     type: str = Field(min_length=1)
 
 
 class ReplicationType(str, Enum):
-    "Replication Method, e.g TRUNCATE, APPEND, UPSERT"
+    """Replication Method, e.g TRUNCATE, APPEND, UPSERT."""
 
     TRUNCATE = "TRUNCATE"
     APPEND = "APPEND"
@@ -20,7 +20,7 @@ class ReplicationType(str, Enum):
 
 
 class Table(BaseModel):
-    """Table class for storing the schema of the data"""
+    """Table class for storing the schema of the data."""
 
     name: str = Field(min_length=1)
     source: str | None = Field(
@@ -32,7 +32,7 @@ class Table(BaseModel):
 
 
 class Catalog(BaseModel):
-    """Catalog class for storing the schema of the data"""
+    """Catalog class for storing the schema of the data."""
 
     name: str = Field(description="Catalog name")
     source: str = Field(description="Source name for this catalog, matching the source name in the config")
@@ -41,18 +41,18 @@ class Catalog(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True, str_strip_whitespace=True)
 
     def get_table(self, table_name: str) -> Table:
-        """Get a table by name"""
+        """Get a table by name."""
         for table in self.tables:
             if table.name == table_name:
                 return table
         raise ValueError(f"Table {table_name} not found in catalog")
 
     def get_tables_by_source(self, source_name: str) -> list[Table]:
-        """Get all tables from a specific source"""
+        """Get all tables from a specific source."""
         return [
             table for table in self.tables if (table.source if table.source is not None else self.source) == source_name
         ]
 
     def get_sources(self) -> list[str]:
-        """Get list of all unique sources in the catalog"""
+        """Get list of all unique sources in the catalog."""
         return list(set(table.source if table.source is not None else self.source for table in self.tables))

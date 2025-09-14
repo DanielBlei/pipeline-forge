@@ -1,6 +1,9 @@
+"""Extractor module for database data extraction."""
+
 from typing import Optional, Iterator, List
 from sqlalchemy import create_engine, text, Engine
 from sqlalchemy.exc import SQLAlchemyError
+
 import logging
 
 from ..core.config import Config
@@ -29,6 +32,7 @@ class BaseExtractor:
             retry_attempts: Number of retry attempts for failed operations (default: 3)
             retry_delay: Delay in seconds between retry attempts (default: 15)
             **engine_kwargs: Additional engine configuration options
+
         """
         if "://" not in connection_string:
             raise ValueError(
@@ -71,6 +75,7 @@ class BaseExtractor:
 
         Returns:
             True if connection is valid, False otherwise
+
         """
         if not self.engine:
             self.connect()  # This will retry if it fails
@@ -106,6 +111,7 @@ class BaseExtractor:
 
         Raises:
             SQLAlchemyError: If extraction fails
+
         """
         if not self.engine:
             self.connect()

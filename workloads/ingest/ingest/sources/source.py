@@ -1,3 +1,5 @@
+"""Source interface and base implementations."""
+
 from typing import Optional, Protocol, runtime_checkable, Iterator
 from pydantic import BaseModel, Field, ConfigDict
 from ..core.config import SourceConfig
@@ -15,10 +17,18 @@ class SourceInterface(Protocol):
     config: SourceConfig
     extractor: Optional[BaseExtractor]
 
-    def connect(self) -> None: ...
-    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[dict]: ...
-    def validate_connection(self) -> bool: ...
-    def close(self) -> None: ...
+    def connect(self) -> None:
+        """Connect to the data source."""
+        ...
+    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[dict]:
+        """Extract data from the source."""
+        ...
+    def validate_connection(self) -> bool:
+        """Validate the connection to the source."""
+        ...
+    def close(self) -> None:
+        """Close the connection to the source."""
+        ...
 
 
 class Source(BaseModel):
@@ -49,6 +59,7 @@ class Source(BaseModel):
 
         Returns:
             Iterator yielding data extracted from the source
+
         """
         if not self.extractor:
             raise RuntimeError("Extractor not initialized")
@@ -59,6 +70,7 @@ class Source(BaseModel):
 
         Returns:
             True if connection is valid
+
         """
         if not self.extractor:
             return False

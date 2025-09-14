@@ -1,3 +1,5 @@
+"""Source package for data source implementations."""
+
 import logging
 
 from .mysql_source import MySQLSource
@@ -21,6 +23,7 @@ def create_source(source_config: SourceConfig, retry_attempts: int = 3, retry_de
 
     Raises:
         ValueError: If source type is not supported or connection validation fails
+
     """
     # Create the source instance
     source: SourceInterface

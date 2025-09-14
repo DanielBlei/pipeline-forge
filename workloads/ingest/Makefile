@@ -18,6 +18,29 @@ fix: ## Attempt to fix linting errors (Ruff)
 	@uv run ruff check . --fix
 	@uv run ruff format .
 
+
+##@ Build
+
+.PHONY: build
+build: ## Build the project
+	@uv run build
+
+.PHONY: build-docker
+build-docker: ## Build the project as a Docker image
+	@docker build -t ingest .
+
+##@ Tests
+
+.PHONY: test-docker
+test-docker: ## Run the project as a Docker container
+	@docker run -it ingest ingest --help
+
 .PHONY: test
 test: ## Run tests
 	@uv run pytest . -v
+
+.PHONY: test-coverage
+test-coverage: ## Run tests with coverage and open HTML report
+	@uv run pytest . --cov=ingest --cov-report=html --cov-report=term-missing
+	@echo "Opening coverage report in browser..."
+	@xdg-open htmlcov/index.html || open htmlcov/index.html || start htmlcov/index.html

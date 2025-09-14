@@ -7,8 +7,9 @@ COPY pyproject.toml ./
 COPY uv.lock ./
 COPY ingest ./ingest
 
-# Install uv and install the package
+# Install uv and install the package system-wide
 RUN pip install --upgrade uv && \
-    uv install .
+    uv sync && \
+    uv pip install -e . --system
 
 CMD ["ingest", "--help"]

@@ -54,6 +54,12 @@ class BigQueryTarget(Target):
         job_config = bigquery.LoadJobConfig(
             write_disposition=self._get_write_disposition(write_disposition),
         )
+        if not self.client:
+            self.client = self._build_client()
+
+        if not self.client:
+            raise RuntimeError("BigQuery client not initialized")
+
         self.client.load_table_from_json(
             json_rows=data,
             destination=target_table,

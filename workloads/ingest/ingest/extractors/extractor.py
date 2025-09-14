@@ -13,11 +13,21 @@ logger = logging.getLogger(__name__)
 class BaseExtractor:
     """Base extraction class using SQLAlchemy for database-agnostic data extraction."""
 
-    def __init__(self, connection_string: str, config: Optional[Config] = None, **engine_kwargs):
+    def __init__(
+        self,
+        connection_string: str,
+        config: Optional[Config] = None,
+        retry_attempts: int = 3,
+        retry_delay: int = 15,
+        **engine_kwargs,
+    ):
         """Initialize the extractor with a database connection string.
 
         Args:
             connection_string: SQLAlchemy connection string
+            config: Optional configuration object
+            retry_attempts: Number of retry attempts for failed operations (default: 3)
+            retry_delay: Delay in seconds between retry attempts (default: 15)
             **engine_kwargs: Additional engine configuration options
         """
         if "://" not in connection_string:
@@ -28,8 +38,10 @@ class BaseExtractor:
         self.connection_string = connection_string
         self.engine: Optional[Engine] = None
         self.engine_kwargs = engine_kwargs
+        self.retry_attempts = retry_attempts
+        self.retry_delay = retry_delay
 
-    @retry_on_exception(retries=5, delay=30)
+    @retry_on_exception()
     def connect(self) -> None:
         """Connect to the database and create the engine."""
         try:
@@ -53,7 +65,7 @@ class BaseExtractor:
             logger.error(f"Failed to create engine: {e}")
             raise
 
-    @retry_on_exception(retries=5, delay=30)
+    @retry_on_exception()
     def validate_connection(self) -> bool:
         """Validate the database connection.
 

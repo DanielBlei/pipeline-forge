@@ -18,6 +18,15 @@ fix: ## Attempt to fix linting errors (Ruff)
 	@uv run ruff check . --fix
 	@uv run ruff format .
 
+.PHONY: install
+install: ## Install the project
+	@uv sync
+	@uv pip install -e .
+
+.PHONY: run-help
+run-help: ## Run the project and show the help
+	@uv run ingest --help
+
 
 ##@ Build
 

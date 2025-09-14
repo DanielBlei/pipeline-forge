@@ -1,4 +1,4 @@
-"""Configuration classes for ingestion"""
+"""Configuration classes for ingestion."""
 
 from typing_extensions import Union
 from pydantic import BaseModel, Field, ConfigDict
@@ -9,15 +9,21 @@ from ingest.helpers.secret_handler import get_gcloud_secret
 
 
 class DatabaseType(str, Enum):
+    """Database type enumeration."""
+    
     MYSQL = "mysql"
     POSTGRES = "postgres"
 
 
 class TargetType(str, Enum):
+    """Target type enumeration."""
+    
     BIGQUERY = "bigquery"
 
 
 class SourceConfig(BaseModel):
+    """Source database configuration."""
+    
     name: str
     type: DatabaseType
     host: str
@@ -37,12 +43,15 @@ class SourceConfig(BaseModel):
 
         Returns:
             SQLAlchemy connection string
+
         """
         port = default_port if default_port != 0 else self.port
         return f"{dialect}://{self.username}:{self.password}@{self.host}:{port}/{self.database}"
 
 
 class BigQueryTargetConfig(BaseModel):
+    """BigQuery target configuration."""
+    
     name: str
     type: TargetType = TargetType.BIGQUERY
     project_id: str = Field(
@@ -67,18 +76,24 @@ TargetTypes = Union["BigQueryTargetConfig"]
 
 
 class RuntimeParams(BaseModel):
+    """Runtime parameters for ingestion process."""
+    
     retry_attempts: int = Field(ge=1, le=10, default=3)
     retry_delay_seconds: int = Field(ge=1, le=3600, default=30)
     chunk_size: int = Field(default=10000)
 
 
 class SecretProvider(str, Enum):
+    """Secret provider enumeration."""
+    
     GOOGLE_SECRET_MANAGER = "gcloud"
     # AWS_SECRET_MANAGER = "aws"
     # AZURE_KEY_VAULT = "azure"
 
 
 class SecretConfig(BaseModel):
+    """Secret configuration."""
+    
     provider: SecretProvider = Field(
         default=SecretProvider.GOOGLE_SECRET_MANAGER, description="Secret Manager Provider"
     )
@@ -91,6 +106,8 @@ class SecretConfig(BaseModel):
 
 
 class Config(BaseModel):
+    """Main configuration class."""
+    
     version: str
     params: RuntimeParams
     secrets: List[SecretConfig]
@@ -100,21 +117,21 @@ class Config(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True, str_strip_whitespace=True)
 
     def get_source_config(self, environment: str, source_name: str) -> Optional[SourceConfig]:
-        """Get a specific source configuration by environment and name"""
+        """Get a specific source configuration by environment and name."""
         if environment not in self.sources:
             return None
 
         return self.sources[environment].get(source_name)
 
     def get_target_config(self, environment: str) -> Optional[TargetTypes]:
-        """Get a specific target configuration by environment and name"""
+        """Get a specific target configuration by environment and name."""
         if environment not in self.targets:
             return None
 
         return self.targets.get(environment)
 
     def get_gcloud_secret_value(self, secret_name: str, environment: str, version: Optional[str] = "latest") -> str:
-        """Get a secret from the Gcloud Secret Manager"""
+        """Get a secret from the Gcloud Secret Manager."""
         if secret_name not in [secret.name for secret in self.secrets]:
             raise ValueError(f"Secret {secret_name} not found in secrets")
 

@@ -1,1 +1,1 @@
-"""Ingest Workload"""
+"""Ingest Workload."""

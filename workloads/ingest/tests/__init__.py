@@ -1,1 +1,1 @@
-"""Tests for the ingest workload"""
+"""Tests for the ingest workload."""

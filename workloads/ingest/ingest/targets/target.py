@@ -1,3 +1,5 @@
+"""Base implementation of the Target protocol."""
+
 from typing import Protocol, runtime_checkable
 from pydantic import BaseModel, Field, ConfigDict
 from ..core.config import TargetTypes
@@ -13,8 +15,12 @@ class TargetInterface(Protocol):
 
     config: TargetTypes
 
-    def load(self, data: list[dict], target_table: str) -> None: ...
-    def validate_connection(self) -> bool: ...
+    def load(self, data: list[dict], target_table: str) -> None:
+        """Load data into the target."""
+        ...
+    def validate_connection(self) -> bool:
+        """Validate the connection to the target."""
+        ...
 
 
 class Target(BaseModel):
@@ -33,10 +39,12 @@ class Target(BaseModel):
         Args:
             data: The data to be ingested
             target_table: Target table or collection name
+            write_disposition: How to handle existing data (TRUNCATE, APPEND, UPSERT)
 
         Raises:
             ValueError: If data is empty or target_table is not provided
             NotImplementedError: If called on base class directly
+
         """
         if not data:
             raise ValueError("No data to load into target")
@@ -58,5 +66,6 @@ class Target(BaseModel):
         Note:
             This is a base implementation that should be overridden by subclasses.
             Each target type has different connection validation requirements.
+
         """
         raise NotImplementedError("Subclasses must implement validate_connection method")

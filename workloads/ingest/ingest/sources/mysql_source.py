@@ -1,8 +1,11 @@
+"""MySQL source implementation."""
+
 from typing import Optional, Iterator
 from .source import Source
 from ..extractors import BaseExtractor
 from ..core.config import SourceConfig
 from ..core.catalog import Table
+
 import logging
 
 logger = logging.getLogger(__name__)

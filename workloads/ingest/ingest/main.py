@@ -1,3 +1,5 @@
+"""Main entry point for the ingest workload."""
+
 import logging
 from pathlib import Path
 import sys
@@ -41,8 +43,10 @@ def ingest(
         debug: Enable debug mode
         env: Environment to use
         dryRun: Enable dry run mode (do not load data into target)
+
     Returns:
         int: Exit code (0 for success, 1 for failure)
+
     """
     try:
         return main(configPath, catalogPath, debug, env, dryRun)
@@ -52,7 +56,7 @@ def ingest(
 
 
 def main(config_path: Path, catalog_path: Path, debug: bool, env: str, dryRun: bool) -> int:
-    """Main entry point for the ingestion process.
+    """Execute the main ingestion process.
 
     Args:
         config_path: Path to config file
@@ -60,8 +64,10 @@ def main(config_path: Path, catalog_path: Path, debug: bool, env: str, dryRun: b
         debug: Enable debug mode
         env: Environment to use
         dryRun: Enable dry run mode (do not load data into target)
+
     Returns:
         int: Exit code (0 for success, 1 for failure)
+
     """
     # Initialize logger with the debug parameter
     setup_logging(__package__, debug=debug)
@@ -109,6 +115,7 @@ def process_source(
         catalog: Catalog object containing table definitions
         env: Environment to use
         dryRun: Enable dry run mode (do not load data into target)
+
     """
     # Get all tables for this source
     tables = catalog.get_tables_by_source(source_name)
@@ -147,6 +154,7 @@ def process_table(
         table: Table definition to process
         chunk_size: Size of data chunks to process
         dryRun: Enable dry run mode (do not load data into target)
+
     """
     chunk_count = 0
     for chunk in source.extract(table=table, chunk_size=chunk_size):
@@ -173,6 +181,7 @@ def load_yaml_model(path: Path, model_cls) -> Any:
 
     Raises:
         SystemExit: If file loading or validation fails
+
     """
     try:
         yaml_loader = YAML(typ="safe")

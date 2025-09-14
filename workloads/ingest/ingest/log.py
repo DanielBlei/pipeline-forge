@@ -1,9 +1,11 @@
+"""Logging configuration module."""
+
 import logging
 from typing import Optional
 
 
 def setup_logging(name: Optional[str] = None, debug: bool = False):
-    """Setup logging for the application.
+    """Set up logging for the application.
 
     Args:
         name: Logger name (usually __package__ or __name__)
@@ -11,6 +13,7 @@ def setup_logging(name: Optional[str] = None, debug: bool = False):
 
     Returns:
         Logger instance
+
     """
     # Get the specific logger if name provided, otherwise root logger
     logger = logging.getLogger(name) if name else logging.getLogger()

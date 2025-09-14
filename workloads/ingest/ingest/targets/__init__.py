@@ -1,3 +1,5 @@
+"""Target package for data target implementations."""
+
 import logging
 
 from .target import Target, TargetInterface
@@ -18,6 +20,7 @@ def create_target(target_config: BigQueryTargetConfig) -> TargetInterface:
 
     Raises:
         ValueError: If target type is not supported or connection validation fails
+
     """
     # Create the target instance
     target: TargetInterface

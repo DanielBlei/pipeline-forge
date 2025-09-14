@@ -1,6 +1,6 @@
 """PostgreSQL source implementation."""
 
-from typing import Optional, Iterator
+from typing import Optional, Iterator, List
 from .source import Source
 from ..extractors import BaseExtractor
 from ..core.config import SourceConfig
@@ -29,7 +29,7 @@ class PostgresSource(Source):
         super().connect()
         logger.debug("PostgreSQL source connected via BaseExtractor")
 
-    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[dict]:
+    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[List[dict]]:
         """Extract data from PostgreSQL table."""
         if not self.extractor:
             raise RuntimeError("PostgreSQL extractor not initialized")

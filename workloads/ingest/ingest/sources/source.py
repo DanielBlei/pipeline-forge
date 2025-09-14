@@ -1,6 +1,6 @@
 """Source interface and base implementations."""
 
-from typing import Optional, Protocol, runtime_checkable, Iterator
+from typing import Optional, Protocol, runtime_checkable, Iterator, List
 from pydantic import BaseModel, Field, ConfigDict
 from ..core.config import SourceConfig
 from ..core.catalog import Table
@@ -20,12 +20,15 @@ class SourceInterface(Protocol):
     def connect(self) -> None:
         """Connect to the data source."""
         ...
-    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[dict]:
+
+    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[List[dict]]:
         """Extract data from the source."""
         ...
+
     def validate_connection(self) -> bool:
         """Validate the connection to the source."""
         ...
+
     def close(self) -> None:
         """Close the connection to the source."""
         ...
@@ -49,7 +52,7 @@ class Source(BaseModel):
         if self.extractor:
             self.extractor.connect()
 
-    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[dict]:
+    def extract(self, table: Table, chunk_size: int, limit: Optional[int] = None) -> Iterator[List[dict]]:
         """Extract data from the source using SQLAlchemy with streaming.
 
         Args:

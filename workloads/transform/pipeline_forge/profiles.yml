@@ -1,0 +1,14 @@
+pipeline_forge:
+  outputs:
+    dev:
+      dataset: pipeline_forge_transform
+      job_execution_timeout_seconds: 300
+      job_retries: 1
+      location: us-central1
+      method: oauth
+      priority: interactive
+      project: pipeline-forge
+      threads: 1
+      type: bigquery
+      impersonate_service_account: transform-workload@pipeline-forge.iam.gserviceaccount.com   
+  target: dev

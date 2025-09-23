@@ -1,0 +1,31 @@
+version: 2
+
+sources:
+  - name: pipeline_forge
+    description: "Source database for pipeline forge"
+    database: pipeline-forge
+    schema: pipeline_forge_ingest
+    tables:
+      - name: account
+        columns:
+          - name: id
+            type: int
+          - name: email
+            type: string
+
+      - name: events
+        columns:
+          - name: id
+            type: int
+          - name: event
+            type: string
+
+      - name: user_events
+        columns:
+          - name: account_id
+            type: int
+          - name: event_id
+            type: int
+          - name: processed_at
+            type: timestamp
+            

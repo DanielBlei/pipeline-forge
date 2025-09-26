@@ -49,7 +49,7 @@ Pipeline Forge consists of two main components:
 **Production-ready data processing components**
 
 - **[Ingest](workloads/ingest/README.md)** - Type-safe data ingestion from MySQL, PostgreSQL to BigQuery
-- **[Transform](workloads/transform/README.md)** - dbt-based data transformation with version control
+- **[Transform](workloads/transform/README.md)** - dbt-based data transformation
 - **[Trigger](workloads/trigger/README.md)** - Event processing for GCS, Pub/Sub, and BigQuery
 
 ## 🛠️ Technology Stack
@@ -87,8 +87,8 @@ pipeline-forge/
 | ------------------------------ | --------------------- | ----------------------------------------------- |
 | **🎛️ Operator API**            | ⚡ **Functional**     | CRD definitions and API contracts               |
 | **🎛️ Operator Reconciliation** | 🚧 **In Development** | Pipeline orchestration and lifecycle management |
-| **📥 Ingest Workload**         | ⚡ **Functional**     | Type-safe data ingestion (Python) - Working     |
-| **🔄 Transform Workload**      | 🚧 **In Development** | dbt-based data transformation                   |
+| **📥 Ingest Workload**         | ⚡ **Functional**     | Type-safe data ingestion (Python)    |
+| **🔄 Transform Workload**      | ⚡ **Functional**     | dbt-core data transformation                   |
 | **⚡ Trigger Workload**        | 🚧 **In Development** | Event-driven pipeline activation (Go)           |
 
 ## 📄 License

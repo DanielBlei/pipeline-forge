@@ -28,4 +28,3 @@ sources:
             type: int
           - name: processed_at
             type: timestamp
-            

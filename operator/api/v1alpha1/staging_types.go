@@ -220,7 +220,7 @@ type StagingSpec struct {
 // +kubebuilder:object:generate=true
 type InternalStatus struct {
 	// Status of the associated staging object (e.g., Complete, Running, Failed, Pending, Unknown).
-	Status string `json:"status,omitempty"`
+	Status *StagingCondition `json:"status,omitempty"`
 
 	// Message provides additional information or error messages about the step status.
 	Message string `json:"message,omitempty"`
@@ -259,8 +259,7 @@ type InternalStatus struct {
 // StagingStatus defines the observed state of a Staging resource.
 type StagingStatus struct {
 	// Status is the status of the Staging (e.g., Deployed, Failed, Pending, Running).
-	// +kubebuilder:validation:Enum=Pending;Running;Completed;Failed;Suspended;Unknown
-	Status StatusType `json:"status,omitempty"`
+	Status *StagingCondition `json:"status,omitempty"`
 
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -304,6 +303,11 @@ type StagingList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Staging `json:"items"`
+}
+
+// SetStatus is a helper function to set the staging status condition
+func (s *StagingStatus) SetStatus(condition StagingCondition) {
+	s.Status = &condition
 }
 
 func init() {

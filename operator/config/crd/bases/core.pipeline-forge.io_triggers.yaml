@@ -251,7 +251,129 @@ spec:
             type: object
           status:
             description: status defines the observed state of Trigger
-            type: string
+            properties:
+              attempts:
+                description: Attempts tracks the number of times this step has been
+                  attempted.
+                format: int32
+                type: integer
+              conditions:
+                description: |-
+                  Conditions represent the latest available observations of the trigger's state.
+                  Examples: Ready, Failed, CooldownActive
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              cooldownUntil:
+                description: CooldownUntil is the next eligible time this trigger
+                  can fire, based on Cooldown setting.
+                format: date-time
+                type: string
+              failedAttempts:
+                description: FailedAttempts tracks the number of failed attempts.
+                format: int32
+                type: integer
+              lastAttemptTime:
+                description: LastAttemptTime is the timestamp of the last attempt.
+                format: date-time
+                type: string
+              lastCheckTime:
+                description: LastCheckTime is the last time the controller evaluated
+                  whether to trigger.
+                format: date-time
+                type: string
+              lastFailureTime:
+                description: LastFailureTime is the timestamp of the last failure.
+                format: date-time
+                type: string
+              lastRunJobName:
+                description: LastRunJobName is the name of the last Kubernetes Job
+                  created by this trigger.
+                type: string
+              lastTriggeredTime:
+                description: LastTriggeredTime is the last time this trigger successfully
+                  resulted in a pipeline activation.
+                format: date-time
+                type: string
+              maxRetries:
+                description: MaxRetries defines the maximum number of retries allowed.
+                format: int32
+                type: integer
+              message:
+                description: Message provides human-readable information about the
+                  trigger status or last evaluation.
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  by the controller.
+                format: int64
+                type: integer
+              retryCount:
+                description: RetryCount tracks the number of retries for the current
+                  attempt.
+                format: int32
+                type: integer
+              status:
+                description: Status is the status of the Trigger (e.g., Deployed,
+                  Failed, Pending, Running).
+                type: string
+              successfulAttempts:
+                description: SuccessfulAttempts tracks the number of successful attempts.
+                format: int32
+                type: integer
+            type: object
         required:
         - spec
         type: object

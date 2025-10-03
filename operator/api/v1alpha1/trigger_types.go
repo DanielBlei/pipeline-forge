@@ -175,8 +175,10 @@ type TriggerSpec struct {
 // +kubebuilder:object:generate=true
 type TriggerStatus struct {
 	// Status is the status of the Trigger (e.g., Deployed, Failed, Pending, Running).
-	// +kubebuilder:validation:Enum=Pending;Running;Completed;Failed;Suspended;Unknown
-	Status string `json:"status,omitempty"`
+	Status *TriggerCondition `json:"status,omitempty"`
+
+	// ObservedGeneration is the most recent generation observed by the controller.
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
 	// Conditions represent the latest available observations of the trigger's state.
 	// Examples: Ready, Failed, CooldownActive
@@ -240,7 +242,7 @@ type Trigger struct {
 	Spec TriggerSpec `json:"spec"`
 
 	// status defines the observed state of Trigger
-	Status StatusType `json:"status,omitempty,omitzero"`
+	Status TriggerStatus `json:"status,omitempty,omitzero"`
 }
 
 // +kubebuilder:object:root=true
@@ -250,6 +252,11 @@ type TriggerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Trigger `json:"items"`
+}
+
+// SetStatus is a helper function to set the trigger status condition
+func (t *TriggerStatus) SetStatus(condition TriggerCondition) {
+	t.Status = &condition
 }
 
 func init() {

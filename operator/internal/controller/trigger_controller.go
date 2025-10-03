@@ -19,13 +19,14 @@ package controller
 import (
 	"context"
 
+	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
+	"github.com/DanielBlei/pipeline-forge/operator/internal/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-
-	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // TriggerReconciler reconciles a Trigger object
@@ -48,18 +49,58 @@ type TriggerReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *TriggerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-	log.Info("Reconciling Trigger:" + req.Name)
+	log := logf.FromContext(ctx).WithValues("trigger", req.NamespacedName)
+	log.Info("Reconciling Trigger")
 
-	trigger := &corev1alpha1.Trigger{}
-	if err := r.Get(ctx, req.NamespacedName, trigger); err != nil {
+	triggerObj := &corev1alpha1.Trigger{}
+	if err := r.Get(ctx, req.NamespacedName, triggerObj); err != nil {
 		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil // obj doesn't exists, stop here and do not reconcile
+			log.V(1).Info("Trigger object not found, stopping reconciliation")
+			return ctrl.Result{}, nil
 		}
-		log.Error(err, "Unable to retrieve object")
+		log.Error(err, "Unable to retrieve Trigger object")
 		return ctrl.Result{}, err
 	}
 
+	// Early exit if already processed this generation
+	if triggerObj.Status.ObservedGeneration == triggerObj.Generation {
+		log.V(1).Info("Already processed this generation, skipping reconciliation",
+			"generation", triggerObj.Generation)
+		return ctrl.Result{}, nil
+	}
+
+	// Create deep copy for status updates
+	triggerDeepCopy := triggerObj.DeepCopy()
+
+	// Initialize status if needed
+	if triggerObj.Status.Status == nil {
+		log.Info("New Trigger object, initializing status")
+		triggerObj.Status.SetStatus(corev1alpha1.TriggerConditionInitiating)
+		triggerObj.Status.ObservedGeneration = triggerObj.Generation
+
+		if err := status.UpdateStatus(ctx, r.Client, triggerObj, triggerDeepCopy); err != nil {
+			log.Error(err, "Unable to update Trigger status")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil // Requeue to continue processing
+	}
+
+	// Handle deletion
+	if !triggerObj.ObjectMeta.DeletionTimestamp.IsZero() {
+		log.Info("Trigger is being deleted")
+		// TODO: Add deletion logic (cleanup resources, remove finalizers)
+		return ctrl.Result{}, nil
+	}
+
+	// Update observed generation
+	triggerObj.Status.ObservedGeneration = triggerObj.Generation
+
+	// TODO: Add actual reconciliation logic here
+	// - Check trigger conditions (BigQuery, GCS, PubSub)
+	// - Evaluate trigger criteria
+	// - Create/update resources as needed
+
+	log.Info("Trigger reconciliation completed")
 	return ctrl.Result{}, nil
 }
 
@@ -68,5 +109,10 @@ func (r *TriggerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1alpha1.Trigger{}).
 		Named("trigger").
+		WithEventFilter(
+			predicate.Or(
+				predicate.GenerationChangedPredicate{},
+				predicate.AnnotationChangedPredicate{},
+			)).
 		Complete(r)
 }

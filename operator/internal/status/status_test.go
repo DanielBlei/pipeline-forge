@@ -75,7 +75,7 @@ var _ = Describe("Status Update", func() {
 			objDeepCopy := resource.DeepCopy()
 
 			By("Updating the status")
-			resource.Status = v1alpha1.StatusCompleted
+			resource.Status.SetStatus(v1alpha1.TriggerStatusCompleted)
 
 			By("Calling UpdateStatus function")
 			err = UpdateStatus(ctx, k8sClient, resource, objDeepCopy)

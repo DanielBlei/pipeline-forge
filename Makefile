@@ -7,8 +7,6 @@ help: ## Display this help.
 
 ##@ Pipeline Forge Development
 
-.PHONY: test
-test: test-operator ## Run Pipeline Forge tests
 
 .PHONY: dev-up
 dev-up: ## Start development environment with docker-compose (dev/)

@@ -19,13 +19,14 @@ package controller
 import (
 	"context"
 
+	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
+	"github.com/DanielBlei/pipeline-forge/operator/internal/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-
-	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // StagingReconciler reconciles a Staging object
@@ -37,6 +38,7 @@ type StagingReconciler struct {
 // +kubebuilder:rbac:groups=core.pipeline-forge.io,resources=stagings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core.pipeline-forge.io,resources=stagings/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core.pipeline-forge.io,resources=stagings/finalizers,verbs=update
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -48,18 +50,47 @@ type StagingReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-	log.Info("Reconciling Staging:" + req.Name)
+	log := logf.FromContext(ctx).WithValues("staging", req.NamespacedName)
+	log.Info("Reconciling Staging")
 
-	staging := &corev1alpha1.Staging{}
-	if err := r.Get(ctx, req.NamespacedName, staging); err != nil {
+	stagingObj := &corev1alpha1.Staging{}
+	if err := r.Get(ctx, req.NamespacedName, stagingObj); err != nil {
 		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil // obj doesn't exists, stop here and do not reconcile
+			log.V(1).Info("Staging object not found, stopping reconciliation")
+			return ctrl.Result{}, nil
 		}
-		log.Error(err, "Unable to retrieve object")
+		log.Error(err, "Unable to retrieve Staging object")
 		return ctrl.Result{}, err
 	}
 
+	// Early exit if already processed this generation
+	if stagingObj.Status.ObservedGeneration == stagingObj.Generation {
+		log.V(1).Info("Already processed this generation, skipping reconciliation",
+			"generation", stagingObj.Generation)
+		return ctrl.Result{}, nil
+	}
+
+	// Initialize status if needed
+	if stagingObj.Status.Status == nil {
+		log.Info("New Staging object, initializing status")
+		stagingDeepCopy := stagingObj.DeepCopy()
+		stagingObj.Status.SetStatus(corev1alpha1.StagingConditionInitiating)
+		stagingObj.Status.ObservedGeneration = stagingObj.Generation
+
+		if err := status.UpdateStatus(ctx, r.Client, stagingObj, stagingDeepCopy); err != nil {
+			log.Error(err, "Unable to update Staging status")
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Handle deletion
+	if !stagingObj.ObjectMeta.DeletionTimestamp.IsZero() {
+		log.Info("Staging is being deleted")
+		// TODO: Add deletion logic (cleanup resources, remove finalizers)
+		return ctrl.Result{}, nil
+	}
+
+	log.Info("Staging reconciliation completed")
 	return ctrl.Result{}, nil
 }
 
@@ -68,5 +99,10 @@ func (r *StagingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1alpha1.Staging{}).
 		Named("staging").
+		WithEventFilter(
+			predicate.Or(
+				predicate.GenerationChangedPredicate{},
+				predicate.AnnotationChangedPredicate{},
+			)).
 		Complete(r)
 }

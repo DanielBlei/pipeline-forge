@@ -86,7 +86,7 @@ func (r *TriggerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// Handle deletion
-	if !triggerObj.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !triggerObj.DeletionTimestamp.IsZero() {
 		log.Info("Trigger is being deleted")
 		// TODO: Add deletion logic (cleanup resources, remove finalizers)
 		return ctrl.Result{}, nil

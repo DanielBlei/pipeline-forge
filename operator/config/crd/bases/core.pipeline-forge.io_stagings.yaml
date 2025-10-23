@@ -482,13 +482,6 @@ spec:
               status:
                 description: Status is the status of the Staging (e.g., Deployed,
                   Failed, Pending, Running).
-                enum:
-                - Pending
-                - Running
-                - Completed
-                - Failed
-                - Suspended
-                - Unknown
                 type: string
               transform:
                 description: Transform is the status of the transformation step.

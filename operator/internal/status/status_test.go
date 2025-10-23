@@ -85,7 +85,7 @@ var _ = Describe("Status Update", func() {
 			updatedObj := &v1alpha1.Trigger{}
 			err = k8sClient.Get(ctx, typeNamespacedName, updatedObj)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(updatedObj.Status).To(Equal(v1alpha1.StatusCompleted))
+			Expect(updatedObj.Status.Status).To(HaveValue(Equal(v1alpha1.TriggerStatusCompleted)))
 		})
 	})
 })

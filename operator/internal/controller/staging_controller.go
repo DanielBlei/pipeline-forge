@@ -84,7 +84,7 @@ func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// Handle deletion
-	if !stagingObj.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !stagingObj.DeletionTimestamp.IsZero() {
 		log.Info("Staging is being deleted")
 		// TODO: Add deletion logic (cleanup resources, remove finalizers)
 		return ctrl.Result{}, nil

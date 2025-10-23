@@ -6,49 +6,55 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-
-	"github.com/DanielBlei/pipeline-forge/workloads/trigger/internal/bucket"
-	"github.com/DanielBlei/pipeline-forge/workloads/trigger/internal/queue"
-	"github.com/DanielBlei/pipeline-forge/workloads/trigger/internal/warehouse"
 )
 
 var (
-	logger     *zap.Logger
-	verbose    bool
-	projectID  string
-	bucketName string
-	queueName  string
-	dataset    string
-	table      string
+	logger        *zap.Logger
+	verbose       bool
+	projectID     string
+	cloudProvider string
 )
 
 // rootCmd is the root command of the trigger workload CLI
 var rootCmd = &cobra.Command{
 	Use:     "trigger-workload",
 	Version: "0.1.0",
-	Short:   "Trigger workload",
-	Long:    "Trigger workload process events from GCS, Pub/Sub, or BigQuery",
+	Short:   "Trigger workload for multi-cloud services",
+	Long: `Trigger workload processes events from object storage, 
+	message queues, and database tables across cloud providers.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		routeToSubcommand()
+		// Display help when no subcommand is provided
+		if err := cmd.Help(); err != nil {
+			panic(fmt.Sprintf("failed to display help: %v", err))
+		}
 	},
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initLogger()
+	},
+	// Hide completion command from help but keep it functional
+	CompletionOptions: cobra.CompletionOptions{
+		HiddenDefaultCmd: true,
 	},
 }
 
 // init initializes the root command
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
-	rootCmd.PersistentFlags().StringVarP(&projectID, "project", "p", "", "project ID")
-	rootCmd.PersistentFlags().StringVarP(&bucketName, "bucket", "b", "", "bucket name")
-	rootCmd.PersistentFlags().StringVarP(&queueName, "queue", "q", "", "queue name")
-	rootCmd.PersistentFlags().StringVarP(&dataset, "dataset", "d", "", "dataset name")
-	rootCmd.PersistentFlags().StringVarP(&table, "table", "t", "", "table name")
+	rootCmd.PersistentFlags().StringVarP(&cloudProvider, "cloud-provider", "c", "", "Cloud provider (required)")
+	rootCmd.PersistentFlags().StringVarP(&projectID, "project", "p", "", "Project ID (required)")
 
-	// Set flags workflow
-	rootCmd.MarkPersistentFlagRequired("project")
-	rootCmd.MarkFlagsMutuallyExclusive("bucket", "queue", "dataset")
-	rootCmd.MarkFlagsRequiredTogether("dataset", "table")
+	// Mark flags as required
+	if err := rootCmd.MarkPersistentFlagRequired("cloud-provider"); err != nil {
+		panic(err)
+	}
+	if err := rootCmd.MarkPersistentFlagRequired("project"); err != nil {
+		panic(err)
+	}
+
+	// Add subcommands
+	rootCmd.AddCommand(bucketCmd)
+	rootCmd.AddCommand(queueCmd)
+	rootCmd.AddCommand(tableCmd)
 }
 
 // initLogger initializes the logger
@@ -77,22 +83,5 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		logger.Error("command execution failed", zap.Error(err))
 		os.Exit(1)
-	}
-}
-
-// routeToSubcommand routes to the appropriate trigger function based on flags
-func routeToSubcommand() {
-	// Determine which resource type is specified
-	if bucketName != "" {
-		logger.Debug("triggering by bucket", zap.String("bucket", bucketName))
-		bucket.TriggerByBucket(logger, projectID, bucketName, verbose)
-	} else if queueName != "" {
-		logger.Debug("triggering by queue", zap.String("queue", queueName))
-		queue.TriggerByQueue(logger, projectID, queueName, verbose)
-	} else if dataset != "" {
-		logger.Debug("triggering by warehouse", zap.String("dataset", dataset), zap.String("table", table))
-		warehouse.TriggerByWarehouse(logger, projectID, dataset, table, verbose)
-	} else {
-		logger.Error("no resource specified, Cobra failed to mark the flags as required")
 	}
 }

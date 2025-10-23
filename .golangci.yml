@@ -34,8 +34,7 @@ linters:
         path: api/*
       - linters:
           - dupl
-          - lll
-        path: internal/*
+        path: trigger/cmd/*
       - linters:
           - staticcheck
           - unused

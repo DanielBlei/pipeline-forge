@@ -1,0 +1,49 @@
+name: Trigger Workload Tests
+
+on:
+    push:
+        paths:
+            - "workloads/trigger/**"
+    pull_request:
+        paths:
+            - "workloads/trigger/**"
+
+jobs:
+    test:
+        name: Test Trigger Workload
+        runs-on: ubuntu-latest
+
+        defaults:
+            run:
+                working-directory: workloads/trigger
+
+        steps:
+            - name: Clone the code
+              uses: actions/checkout@v4
+
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version-file: workloads/trigger/go.mod
+
+            - name: Cache Go modules
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cache/go-build
+                      ~/go/pkg/mod
+                  key: ${{ runner.os }}-go-${{ hashFiles('workloads/trigger/go.sum') }}
+                  restore-keys: |
+                      ${{ runner.os }}-go-
+
+            - name: Run linter
+              uses: golangci/golangci-lint-action@v8
+              with:
+                  version: v2.5.0
+                  working-directory: workloads/trigger
+
+            - name: Build trigger
+              run: make build
+
+            - name: Run help command to validate
+              run: ./bin/trigger-workload --help

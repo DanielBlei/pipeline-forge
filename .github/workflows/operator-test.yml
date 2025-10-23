@@ -32,7 +32,7 @@ jobs:
       - name: Run linter
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1.6
+          version: v2.5.0
           working-directory: operator
 
       - name: Check that generated code is up to date

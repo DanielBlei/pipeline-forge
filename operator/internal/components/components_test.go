@@ -120,7 +120,6 @@ func TestCreateCronJob(t *testing.T) {
 				tt.args.schedule,
 				tt.args.image,
 				tt.args.command,
-				tt.args.args,
 				tt.args.resources,
 			)
 			if cronJob.Name != tt.args.name {
@@ -138,9 +137,6 @@ func TestCreateCronJob(t *testing.T) {
 			}
 			if len(tt.wantContainer.Command) > 0 && !equalStringSlice(container.Command, tt.wantContainer.Command) {
 				t.Errorf("expected command %v, got %v", tt.wantContainer.Command, container.Command)
-			}
-			if len(tt.wantContainer.Args) > 0 && !equalStringSlice(container.Args, tt.wantContainer.Args) {
-				t.Errorf("expected args %v, got %v", tt.wantContainer.Args, container.Args)
 			}
 			if !resourceRequirementsEqual(container.Resources, tt.wantContainer.Resources) {
 				t.Errorf("expected resources %+v, got %+v", tt.wantContainer.Resources, container.Resources)
@@ -163,7 +159,6 @@ func TestNewJob(t *testing.T) {
 			namespace string
 			image     string
 			command   []string
-			args      []string
 			resources *corev1.ResourceRequirements
 		}
 		wantContainer corev1.Container
@@ -175,14 +170,12 @@ func TestNewJob(t *testing.T) {
 				namespace string
 				image     string
 				command   []string
-				args      []string
 				resources *corev1.ResourceRequirements
 			}{
 				name:      "test-job",
 				namespace: "ns1",
 				image:     "ubuntu",
 				command:   []string{"/bin/sh"},
-				args:      []string{"-c", "echo world"},
 				resources: &corev1.ResourceRequirements{
 					Limits: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("2"),
@@ -198,7 +191,6 @@ func TestNewJob(t *testing.T) {
 				Name:    "test-job",
 				Image:   "ubuntu",
 				Command: []string{"/bin/sh"},
-				Args:    []string{"-c", "echo world"},
 				Resources: corev1.ResourceRequirements{
 					Limits: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("2"),
@@ -218,14 +210,12 @@ func TestNewJob(t *testing.T) {
 				namespace string
 				image     string
 				command   []string
-				args      []string
 				resources *corev1.ResourceRequirements
 			}{
 				name:      "job-default",
 				namespace: "ns2",
 				image:     "alpine",
 				command:   nil,
-				args:      nil,
 				resources: nil,
 			},
 			wantContainer: corev1.Container{
@@ -247,12 +237,11 @@ func TestNewJob(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			job := NewJob(
+			job := CreateJob(
 				tt.args.name,
 				tt.args.namespace,
 				tt.args.image,
 				tt.args.command,
-				tt.args.args,
 				tt.args.resources,
 			)
 			if job.Name != tt.args.name {
@@ -267,9 +256,6 @@ func TestNewJob(t *testing.T) {
 			}
 			if len(tt.wantContainer.Command) > 0 && !equalStringSlice(container.Command, tt.wantContainer.Command) {
 				t.Errorf("expected command %v, got %v", tt.wantContainer.Command, container.Command)
-			}
-			if len(tt.wantContainer.Args) > 0 && !equalStringSlice(container.Args, tt.wantContainer.Args) {
-				t.Errorf("expected args %v, got %v", tt.wantContainer.Args, container.Args)
 			}
 			if !resourceRequirementsEqual(container.Resources, tt.wantContainer.Resources) {
 				t.Errorf("expected resources %+v, got %+v", tt.wantContainer.Resources, container.Resources)

@@ -22,6 +22,8 @@ linters:
     - unparam
     - unused
   settings:
+    lll:
+      line-length: 120
     revive:
       rules:
         - name: comment-spacings
@@ -47,6 +49,11 @@ formatters:
   enable:
     - gofmt
     - goimports
+    - golines
+  settings:
+    golines:
+      max-len: 120
+      tab-len: 1
   exclusions:
     generated: lax
     paths:

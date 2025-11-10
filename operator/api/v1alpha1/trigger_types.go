@@ -84,7 +84,7 @@ type TriggerSpec struct {
 	//
 	// +kubebuilder:validation:Enum=gcs;pubsub;bigquery
 	// +kubebuilder:validation:Required
-	Type string `json:"type"`
+	Type TriggerType `json:"type"`
 
 	// Name of the trigger resource.
 	//
@@ -175,7 +175,7 @@ type TriggerSpec struct {
 // +kubebuilder:object:generate=true
 type TriggerStatus struct {
 	// Status is the status of the Trigger (e.g., Deployed, Failed, Pending, Running).
-	Status *TriggerCondition `json:"status,omitempty"`
+	Status *ObjCondition `json:"status,omitempty"`
 
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -221,6 +221,11 @@ type TriggerStatus struct {
 	LastFailureTime *metav1.Time `json:"lastFailureTime,omitempty"`
 }
 
+// SetTriggerStatus is a helper function to set the trigger status condition
+func (t *TriggerStatus) SetTriggerStatus(condition ObjCondition) {
+	t.Status = &condition
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
@@ -249,14 +254,9 @@ type Trigger struct {
 
 // TriggerList contains a list of Trigger
 type TriggerList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `          json:",inline"`
+	metav1.ListMeta `          json:"metadata,omitempty"`
 	Items           []Trigger `json:"items"`
-}
-
-// SetStatus is a helper function to set the trigger status condition
-func (t *TriggerStatus) SetStatus(condition TriggerCondition) {
-	t.Status = &condition
 }
 
 func init() {

@@ -21,18 +21,20 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
+	"github.com/DanielBlei/pipeline-forge/operator/internal/components"
 )
 
 var _ = Describe("Staging Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
+		const cronJobName = "example-cronjob"
 
 		ctx := context.Background()
 
@@ -40,11 +42,30 @@ var _ = Describe("Staging Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
+		cronJobNamespacedName := types.NamespacedName{
+			Name:      cronJobName,
+			Namespace: "default",
+		}
 		staging := &corev1alpha1.Staging{}
 
 		BeforeEach(func() {
+			By("creating the referenced CronJob")
+			cronJob := &batchv1.CronJob{}
+			err := k8sClient.Get(ctx, cronJobNamespacedName, cronJob)
+			if err != nil && errors.IsNotFound(err) {
+				cronJob = components.CreateCronJob(
+					cronJobName,
+					"default",
+					"*/5 * * * *",
+					"busybox:latest",
+					[]string{"echo", "test"},
+					nil,
+				)
+				Expect(k8sClient.Create(ctx, cronJob)).To(Succeed())
+			}
+
 			By("creating the custom resource for the Kind Staging")
-			err := k8sClient.Get(ctx, typeNamespacedName, staging)
+			err = k8sClient.Get(ctx, typeNamespacedName, staging)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &corev1alpha1.Staging{
 					ObjectMeta: metav1.ObjectMeta{
@@ -57,7 +78,7 @@ var _ = Describe("Staging Controller", func() {
 						Ingest: corev1alpha1.IngestSpec{
 							Mode:      "reference",
 							Type:      "cronjob",
-							Name:      "example-cronjob",
+							Name:      cronJobName,
 							Namespace: "default",
 						},
 						Transform: corev1alpha1.TransformSpec{
@@ -80,6 +101,13 @@ var _ = Describe("Staging Controller", func() {
 
 			By("Cleanup the specific resource instance Staging")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+
+			By("Cleanup the CronJob")
+			cronJob := &batchv1.CronJob{}
+			err = k8sClient.Get(ctx, cronJobNamespacedName, cronJob)
+			if err == nil {
+				Expect(k8sClient.Delete(ctx, cronJob)).To(Succeed())
+			}
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")

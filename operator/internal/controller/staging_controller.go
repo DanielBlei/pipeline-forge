@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
 	"github.com/DanielBlei/pipeline-forge/operator/internal/status"
@@ -27,6 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+)
+
+const (
+	stagingFinalizer    = "staging.core.pipeline-forge.io/finalizer"
+	defaultRequeueAfter = 60 * time.Second
 )
 
 // StagingReconciler reconciles a Staging object
@@ -40,15 +46,6 @@ type StagingReconciler struct {
 // +kubebuilder:rbac:groups=core.pipeline-forge.io,resources=stagings/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Staging object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx).WithValues("staging", req.NamespacedName)
 	log.Info("Reconciling Staging")
@@ -63,6 +60,13 @@ func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
+	// Handle deletion first
+	if !stagingObj.DeletionTimestamp.IsZero() {
+		log.Info("Staging is being deleted")
+		// TODO: Add deletion logic (cleanup resources, remove finalizers)
+		return ctrl.Result{}, nil
+	}
+
 	// Early exit if already processed this generation
 	if stagingObj.Status.ObservedGeneration == stagingObj.Generation {
 		log.V(1).Info("Already processed this generation, skipping reconciliation",
@@ -70,28 +74,29 @@ func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	// Initialize status if needed
+	// Create deep copy  prior to object checks and updates
+	stagingDeepCopy := stagingObj.DeepCopy()
+
+	// Initialize status if needed (first time reconciliation)
 	if stagingObj.Status.Status == nil {
 		log.Info("New Staging object, initializing status")
-		stagingDeepCopy := stagingObj.DeepCopy()
-		stagingObj.Status.SetStatus(corev1alpha1.StagingConditionInitiating)
-		stagingObj.Status.ObservedGeneration = stagingObj.Generation
+		stagingObj.Status.SetStagingStatus(corev1alpha1.ObjConditionInitiating)
+	}
 
-		if err := status.UpdateStatus(ctx, r.Client, stagingObj, stagingDeepCopy); err != nil {
-			log.Error(err, "Unable to update Staging status")
-			return ctrl.Result{}, err
+	// Update observed generation
+	stagingObj.Status.ObservedGeneration = stagingObj.Generation
+
+	// Check Ingestion (work in progress)
+	if err := r.validateIngestionAndUpdateStatus(ctx, stagingObj); err != nil {
+		log.Error(err, "Error checking ingestion")
+		if updateError := status.UpdateStatus(ctx, r.Client, stagingObj, stagingDeepCopy); updateError != nil {
+			log.Error(updateError, "Unable to update Staging status")
+			return ctrl.Result{}, updateError
 		}
+		return ctrl.Result{}, err
 	}
 
-	// Handle deletion
-	if !stagingObj.DeletionTimestamp.IsZero() {
-		log.Info("Staging is being deleted")
-		// TODO: Add deletion logic (cleanup resources, remove finalizers)
-		return ctrl.Result{}, nil
-	}
-
-	log.Info("Staging reconciliation completed")
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: defaultRequeueAfter}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -99,6 +104,8 @@ func (r *StagingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1alpha1.Staging{}).
 		Named("staging").
+		// Only reconcile when spec changes (generation bump) or annotations change.
+		// This prevents unnecessary reconciliations on status-only updates.
 		WithEventFilter(
 			predicate.Or(
 				predicate.GenerationChangedPredicate{},

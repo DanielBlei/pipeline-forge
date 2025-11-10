@@ -75,11 +75,8 @@ spec:
                   by referencing a Kubernetes CronJob or Job or by referencing a Trigger
                   CRD
                 properties:
-                  args:
-                    description: |-
-                      Args specifies the command-line arguments to pass to the container,
-                      overriding the default container command (entrypoint).
-                      If set, these arguments will replace the container's default command.
+                  command:
+                    description: Command specifies the command to run in the container.
                     items:
                       type: string
                     type: array

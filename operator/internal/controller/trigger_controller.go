@@ -75,7 +75,7 @@ func (r *TriggerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// Initialize status if needed
 	if triggerObj.Status.Status == nil {
 		log.Info("New Trigger object, initializing status")
-		triggerObj.Status.SetStatus(corev1alpha1.TriggerConditionInitiating)
+		triggerObj.Status.SetTriggerStatus(corev1alpha1.ObjConditionInitiating)
 		triggerObj.Status.ObservedGeneration = triggerObj.Generation
 
 		if err := status.UpdateStatus(ctx, r.Client, triggerObj, triggerDeepCopy); err != nil {
@@ -92,13 +92,13 @@ func (r *TriggerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	// Update observed generation
-	triggerObj.Status.ObservedGeneration = triggerObj.Generation
-
 	// TODO: Add actual reconciliation logic here
 	// - Check trigger conditions (BigQuery, GCS, PubSub)
 	// - Evaluate trigger criteria
 	// - Create/update resources as needed
+
+	// Update observed generation
+	triggerObj.Status.ObservedGeneration = triggerObj.Generation
 
 	log.Info("Trigger reconciliation completed")
 	return ctrl.Result{}, nil

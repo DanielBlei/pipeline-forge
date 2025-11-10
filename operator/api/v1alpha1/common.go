@@ -40,3 +40,16 @@ const (
 	IngestTypeJob     IngestType = "job"
 	IngestTypeTrigger IngestType = "trigger"
 )
+
+// ObjectCondition represents the condition of an object (Ingest, Transform, Trigger, etc.)
+type ObjCondition string
+
+const (
+	ObjectStatusCompleted  ObjCondition = "Completed"
+	ObjConditionFailed     ObjCondition = "Failed"
+	ObjConditionPending    ObjCondition = "Pending"
+	ObjConditionRunning    ObjCondition = "Running"
+	ObjConditionSuspended  ObjCondition = "Suspended"
+	ObjConditionReady      ObjCondition = "Ready"
+	ObjConditionInitiating ObjCondition = "Initiating"
+)

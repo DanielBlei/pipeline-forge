@@ -75,12 +75,10 @@ type IngestSpec struct {
 	// +optional
 	Image string `json:"image"`
 
-	// Args specifies the command-line arguments to pass to the container,
-	// overriding the default container command (entrypoint).
-	// If set, these arguments will replace the container's default command.
+	// Command specifies the command to run in the container.
 	//
 	// +optional
-	Args []string `json:"args,omitempty"`
+	Command []string `json:"command,omitempty"`
 
 	// Resources defines CPU and memory requests/limits for the Cronjob/Job container.
 	// If Type is "trigger", this field is ignored.
@@ -220,7 +218,7 @@ type StagingSpec struct {
 // +kubebuilder:object:generate=true
 type InternalStatus struct {
 	// Status of the associated staging object (e.g., Complete, Running, Failed, Pending, Unknown).
-	Status *StagingCondition `json:"status,omitempty"`
+	Status *ObjCondition `json:"status,omitempty"`
 
 	// Message provides additional information or error messages about the step status.
 	Message string `json:"message,omitempty"`
@@ -256,10 +254,15 @@ type InternalStatus struct {
 	FailedAttempts int32 `json:"failedAttempts,omitempty"`
 }
 
+// SetInternalStatus is a helper function to set the internal status condition
+func (s *InternalStatus) SetInternalStatus(condition ObjCondition) {
+	s.Status = &condition
+}
+
 // StagingStatus defines the observed state of a Staging resource.
 type StagingStatus struct {
 	// Status is the status of the Staging (e.g., Deployed, Failed, Pending, Running).
-	Status *StagingCondition `json:"status,omitempty"`
+	Status *ObjCondition `json:"status,omitempty"`
 
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -272,6 +275,11 @@ type StagingStatus struct {
 
 	// Conditions is a list of status conditions for the Staging resource.
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
+}
+
+// SetStagingStatus is a helper function to set the staging status condition
+func (s *StagingStatus) SetStagingStatus(condition ObjCondition) {
+	s.Status = &condition
 }
 
 // +kubebuilder:object:root=true
@@ -300,14 +308,9 @@ type Staging struct {
 // +kubebuilder:object:root=true
 // StagingList contains a list of Staging
 type StagingList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `          json:",inline"`
+	metav1.ListMeta `          json:"metadata,omitempty"`
 	Items           []Staging `json:"items"`
-}
-
-// SetStatus is a helper function to set the staging status condition
-func (s *StagingStatus) SetStatus(condition StagingCondition) {
-	s.Status = &condition
 }
 
 func init() {

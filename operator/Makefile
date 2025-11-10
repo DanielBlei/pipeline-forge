@@ -1,6 +1,9 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 
+# Golangci Config File
+GOLANGCI_CONFIG ?= ../.golangci.yml
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -73,11 +76,16 @@ cleanup-test-e2e: ## Tear down the Kind cluster used for e2e tests
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
-	$(GOLANGCI_LINT) run
+	$(GOLANGCI_LINT) run --config $(GOLANGCI_CONFIG)
 
 .PHONY: lint-fix
-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
-	$(GOLANGCI_LINT) run --fix
+lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes, then format long lines
+	$(GOLANGCI_LINT) run --fix --config $(GOLANGCI_CONFIG)
+	$(MAKE) format-lines
+
+.PHONY: format-lines
+format-lines: golines ## Format long lines using golines
+	$(GOLINES) -w -m 120 -t 1 .
 
 .PHONY: lint-config
 lint-config: golangci-lint ## Verify golangci-lint linter configuration
@@ -180,6 +188,7 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+GOLINES ?= $(LOCALBIN)/golines
 
 # Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0
@@ -189,6 +198,7 @@ ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
 GOLANGCI_LINT_VERSION ?= v2.1.6
+GOLINES_VERSION ?= v0.12.1
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -217,6 +227,11 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+
+.PHONY: golines
+golines: $(GOLINES) ## Download golines locally if necessary.
+$(GOLINES): $(LOCALBIN)
+	$(call go-install-tool,$(GOLINES),github.com/segmentio/golines,$(GOLINES_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary

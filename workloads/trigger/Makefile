@@ -8,11 +8,11 @@ help: ## Display this help.
 
 .PHONY: lint
 lint: ## Run Linters
-	golangci-lint run
+	golangci-lint run -c ../.golangci.yml
 
 .PHONY: lint-fix
 lint-fix: ## Run Linters and fix issues
-	golangci-lint run --fix
+	golangci-lint run --fix -c ../.golangci.yml
 
 .PHONY: build
 build: ## Build the trigger

@@ -60,7 +60,16 @@ jobs:
         run: uv run pytest . -v
         continue-on-error: true
 
-      - name: Test package installation
-        run: |
-          uv run pip install -e .
-          uv run ingest --help
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ingest Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: ingest:ci-${{ github.sha }}
+          load: true   # IMPORTANT: makes the image available to `docker run` on the next step
+          push: false
+
+      - name: Smoke test built image (CLI)
+        run: docker run --rm ingest:ci-${{ github.sha }} ingest --help

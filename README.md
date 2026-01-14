@@ -91,6 +91,14 @@ pipeline-forge/
 | **🔄 Transform Workload**      | ⚡ **Functional**     | dbt-core data transformation                   |
 | **⚡ Trigger Workload**        | 🚧 **In Development** | Event-driven pipeline activation (Go)           |
 
+## 🧪 Experimental Branches
+
+This project encourages experimental branches (prefixed with `lab/*`), current experiments include:
+
+- **[`lab/jenkins-k8s`](../../tree/lab/jenkins-k8s/jenkins)** - Jenkins CI/CD evaluation with Kubernetes-native deployment, Configuration as Code (JCasC), and Job DSL seed patterns
+
+These experiments help evaluate different approaches and technologies that may or may not be integrated into the main project.
+
 ## 📄 License
 
 This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.

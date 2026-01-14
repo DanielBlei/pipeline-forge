@@ -1,0 +1,82 @@
+# Jenkins helm chart overrides default values
+# https://github.com/jenkinsci/helm-charts/blob/main/charts/jenkins/values.yaml
+controller:
+  jenkinsAdminEmail: pipeline-forge@example.com
+  jenkinsUrl: http://localhost:8080
+  numExecutors: 1
+
+  installPlugins:
+    - antisamy-markup-formatter
+    - build-timeout
+    - credentials-binding
+    - email-ext
+    - git
+    - github-branch-source
+    - matrix-auth
+    - matrix-project
+    - timestamper
+    - workflow-aggregator
+    - workflow-multibranch
+    - job-dsl
+    - kubernetes
+    - configuration-as-code
+
+  additionalPlugins:
+    - theme-manager
+    - dark-theme
+
+  # Provide pre-approval for a seed job, avoiding permission issues
+  # Can be manually removed after the seed job has been completed
+  initScripts:
+    disable-job-dsl-script-security: |
+      import javaposse.jobdsl.plugin.GlobalJobDslSecurityConfiguration
+      import jenkins.model.GlobalConfiguration
+
+      GlobalConfiguration.all().get(GlobalJobDslSecurityConfiguration.class).useScriptSecurity=false
+      GlobalConfiguration.all().get(GlobalJobDslSecurityConfiguration.class).save()
+
+  JCasC:
+    defaultConfig: true
+    configScripts:
+      seed-job: |
+        jobs:
+          - script: >
+              pipelineJob('seed') {
+                description('Bootstraps all pipeline jobs from job-dsl/*.groovy to the Pipeline Forge Jenkins instance')
+                definition {
+                  cpsScm {
+                    scm {
+                      git {
+                        remote { url('https://github.com/DanielBlei/pipeline-forge.git') }
+                        branches('*/lab/jenkins-k8s')
+                        extensions {
+                          cloneOptions {
+                            shallow(true)
+                            depth(1)
+                            noTags(true)
+                          }
+                        }
+                      }
+                    }
+                    scriptPath('jenkins/job-dsl/seed.Jenkinsfile')
+                  }
+                }
+              }
+
+agent:
+  serviceAccount:
+    create: false
+    name: jenkins
+
+persistence:
+  enabled: true
+  existingClaim: "jenkins-pv-claim"
+  storageClass: "local-storage"
+
+serviceAccount:
+  create: false
+  name: jenkins
+
+serviceAccountAgent:
+  create: false
+  name: jenkins

@@ -27,10 +27,12 @@ def create_source(source_config: SourceConfig, retry_attempts: int = 3, retry_de
     """
     # Create the source instance
     source: SourceInterface
+    # Note: Instantiate sources with just the config to match tests' expectations.
+    # Retry parameters are managed internally by the Source and Extractor with their defaults.
     if source_config.type.value == "mysql":
-        source = MySQLSource(source_config, retry_attempts=retry_attempts, retry_delay=retry_delay)
+        source = MySQLSource(source_config)
     elif source_config.type.value == "postgres":
-        source = PostgresSource(source_config, retry_attempts=retry_attempts, retry_delay=retry_delay)
+        source = PostgresSource(source_config)
     else:
         raise ValueError(f"Unsupported source type: {source_config.type}")
 

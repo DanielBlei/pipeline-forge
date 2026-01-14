@@ -46,7 +46,7 @@ test-docker: ## Run the project as a Docker container
 
 .PHONY: test
 test: ## Run tests
-	@uv run pytest . -v
+	@uv run pytest . -v --junitxml=test-results.xml
 
 .PHONY: test-coverage
 test-coverage: ## Run tests with coverage and open HTML report

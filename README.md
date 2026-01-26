@@ -75,7 +75,8 @@ pipeline-forge/
 │   ├── transform/     # dbt transformations
 │   └── trigger/       # Event processing (Go)
 ├── dev/               # Development environment setup
-├── infrastructure/    # Cloud infrastructure automation
+├── infrastructure/    # Cloud infrastructure 
+├── integrations/      # Integration experiments
 └── docs/              # Documentation
 ```
 
@@ -91,13 +92,11 @@ pipeline-forge/
 | **🔄 Transform Workload**      | ⚡ **Functional**     | dbt-core data transformation                   |
 | **⚡ Trigger Workload**        | 🚧 **In Development** | Event-driven pipeline activation (Go)           |
 
-## 🧪 Experimental Branches
+## 🧪 Integration Experiments
 
-This project encourages experimental branches (prefixed with `lab/*`), current experiments include:
+In `integrations/`, you will find experiments and documentation for integrating Pipeline Forge with other systems, technologies, etc. Current integrations:
 
-- **[`lab/jenkins-k8s`](../../tree/lab/jenkins-k8s/jenkins)** - Jenkins CI/CD evaluation with Kubernetes-native deployment, Configuration as Code (JCasC), and Job DSL seed patterns
-
-These experiments help evaluate different approaches and technologies that may or may not be integrated into the main project.
+- **[pipeline-forge-jenkins-k8s](https://github.com/DanielBlei/pipeline-forge-jenkins-k8s)** - Separate repository for Jenkins CI/CD evaluation with Kubernetes-native deployment, Configuration as Code (JCasC), and Job DSL seed patterns. 
 
 ## 📄 License
 

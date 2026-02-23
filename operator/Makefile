@@ -46,6 +46,26 @@ vet: ## Run go vet against code.
 test: manifests generate fmt vet setup-envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
+KIND_CLUSTER_SANDBOX ?= pipeline-forge-sandbox
+
+.PHONY: setup-sandbox
+setup-sandbox: ## Create a Kind cluster for local development.
+	@command -v $(KIND) >/dev/null 2>&1 || { \
+		echo "Kind is not installed. Please install Kind manually."; \
+		exit 1; \
+	}
+	@case "$$($(KIND) get clusters)" in \
+		*"$(KIND_CLUSTER_SANDBOX)"*) \
+			echo "Kind cluster '$(KIND_CLUSTER_SANDBOX)' already exists. Skipping creation." ;; \
+		*) \
+			echo "Creating Kind cluster '$(KIND_CLUSTER_SANDBOX)'..."; \
+			$(KIND) create cluster --name $(KIND_CLUSTER_SANDBOX) ;; \
+	esac
+
+.PHONY: cleanup-sandbox
+cleanup-sandbox: ## Delete the Kind sandbox cluster.
+	@$(KIND) delete cluster --name $(KIND_CLUSTER_SANDBOX)
+
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
 # CertManager is installed by default; skip with:
 # - CERT_MANAGER_INSTALL_SKIP=true
@@ -116,6 +136,10 @@ run: manifests generate fmt vet check-local-context ## Run a controller from you
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
 	$(CONTAINER_TOOL) build -t ${IMG} .
+	@echo ""
+	@echo "  To load this image into a Kind cluster, run:"
+	@echo "    kind load docker-image ${IMG} --name $(KIND_CLUSTER_SANDBOX)"
+	@echo ""
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
@@ -169,6 +193,22 @@ deploy: manifests kustomize check-local-context ## Deploy controller to the K8s 
 .PHONY: undeploy
 undeploy: kustomize check-local-context ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+PROMETHEUS_RELEASE ?= kube-prometheus
+PROMETHEUS_NAMESPACE ?= monitoring
+
+.PHONY: deploy-prometheus
+deploy-prometheus: check-local-context ## Install kube-prometheus-stack into a local Kind/minikube cluster via Helm.
+	@helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
+	@helm repo update prometheus-community
+	helm upgrade --install $(PROMETHEUS_RELEASE) prometheus-community/kube-prometheus-stack \
+		--namespace $(PROMETHEUS_NAMESPACE) --create-namespace --wait \
+		--set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+
+.PHONY: undeploy-prometheus
+undeploy-prometheus: check-local-context ## Uninstall kube-prometheus-stack from the local cluster.
+	helm uninstall $(PROMETHEUS_RELEASE) --namespace $(PROMETHEUS_NAMESPACE)
+	$(KUBECTL) delete namespace $(PROMETHEUS_NAMESPACE) --ignore-not-found=true
 
 ##@ Dependencies
 

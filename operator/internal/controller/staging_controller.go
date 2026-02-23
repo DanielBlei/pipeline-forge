@@ -21,6 +21,7 @@ import (
 	"time"
 
 	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
+	pfmetrics "github.com/DanielBlei/pipeline-forge/operator/internal/metrics"
 	"github.com/DanielBlei/pipeline-forge/operator/internal/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,6 +46,7 @@ type StagingReconciler struct {
 // +kubebuilder:rbac:groups=core.pipeline-forge.io,resources=stagings/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core.pipeline-forge.io,resources=stagings/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;delete
 
 func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx).WithValues("staging", req.NamespacedName)
@@ -71,6 +73,7 @@ func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if stagingObj.Status.ObservedGeneration == stagingObj.Generation {
 		log.V(1).Info("Already processed this generation, skipping reconciliation",
 			"generation", stagingObj.Generation)
+		pfmetrics.StagingReconcileTotal.WithLabelValues(pfmetrics.ResultSkipped).Inc()
 		return ctrl.Result{}, nil
 	}
 
@@ -81,6 +84,7 @@ func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if stagingObj.Status.Status == nil {
 		log.Info("New Staging object, initializing status")
 		stagingObj.Status.SetStagingStatus(corev1alpha1.ObjConditionInitiating)
+		pfmetrics.StagingReconcileTotal.WithLabelValues(pfmetrics.ResultInitialized).Inc()
 	}
 
 	// Update observed generation
@@ -93,14 +97,19 @@ func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			log.Error(updateError, "Unable to update Staging status")
 			return ctrl.Result{}, updateError
 		}
+		pfmetrics.StagingReconcileTotal.WithLabelValues(pfmetrics.ResultValidationFailed).Inc()
 		return ctrl.Result{}, err
 	}
 
+	pfmetrics.StagingReconcileTotal.WithLabelValues(pfmetrics.ResultRequeued).Inc()
 	return ctrl.Result{RequeueAfter: defaultRequeueAfter}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StagingReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := pfmetrics.Register(); err != nil {
+		return err
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1alpha1.Staging{}).
 		Named("staging").

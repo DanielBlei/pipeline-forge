@@ -314,6 +314,32 @@ For more information on available make targets:
 make help
 ```
 
+## Metrics
+
+Prometheus metrics are enabled for development and local validation. The operator
+exposes a `pipeline_forge_reconciliations_total` counter partitioned by `result`:
+
+| Result | Description |
+|---|---|
+| `skipped` | Generation already processed |
+| `initialized` | First reconciliation of a new Staging resource |
+| `validation_failed` | Ingestion validation returned an error |
+| `requeued` | Happy path, requeued after 60s |
+
+To spin up kube-prometheus-stack locally and visualise metrics in Grafana:
+
+```sh
+make deploy-prometheus   # installs Prometheus + Grafana into the monitoring namespace
+
+# Acess via port-forward
+kubectl port-forward -n monitoring svc/kube-prometheus-kube-prome-prometheus 9090
+kubectl port-forward -n monitoring svc/kube-prometheus-grafana 3000:80
+
+make undeploy-prometheus # tears it down
+```
+
+Once running, query `pipeline_forge_reconciliations_total` in Grafana Explore.
+
 ## Related Components
 
 - **Workloads**: See `../workloads/` for the actual data processing workloads

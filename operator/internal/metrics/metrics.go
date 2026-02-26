@@ -22,7 +22,6 @@ import (
 )
 
 const (
-	ResultSkipped          = "skipped"
 	ResultInitialized      = "initialized"
 	ResultValidationFailed = "validation_failed"
 	ResultRequeued         = "requeued"

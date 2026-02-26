@@ -62,13 +62,6 @@ func (r *TriggerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	// Early exit if already processed this generation
-	if triggerObj.Status.ObservedGeneration == triggerObj.Generation {
-		log.V(1).Info("Already processed this generation, skipping reconciliation",
-			"generation", triggerObj.Generation)
-		return ctrl.Result{}, nil
-	}
-
 	// Create deep copy for status updates
 	triggerDeepCopy := triggerObj.DeepCopy()
 

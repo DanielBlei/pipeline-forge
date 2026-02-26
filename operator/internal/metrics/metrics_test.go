@@ -44,7 +44,7 @@ func TestStagingReconcileTotal_EachLabelIncrements(t *testing.T) {
 	)
 	reg.MustRegister(counter)
 
-	results := []string{ResultSkipped, ResultInitialized, ResultValidationFailed, ResultRequeued}
+	results := []string{ResultInitialized, ResultValidationFailed, ResultRequeued}
 	for _, result := range results {
 		t.Run(result, func(t *testing.T) {
 			counter.WithLabelValues(result).Inc()

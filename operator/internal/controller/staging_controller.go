@@ -69,14 +69,6 @@ func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	// Early exit if already processed this generation
-	if stagingObj.Status.ObservedGeneration == stagingObj.Generation {
-		log.V(1).Info("Already processed this generation, skipping reconciliation",
-			"generation", stagingObj.Generation)
-		pfmetrics.StagingReconcileTotal.WithLabelValues(pfmetrics.ResultSkipped).Inc()
-		return ctrl.Result{}, nil
-	}
-
 	// Create deep copy  prior to object checks and updates
 	stagingDeepCopy := stagingObj.DeepCopy()
 
@@ -98,6 +90,11 @@ func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, updateError
 		}
 		pfmetrics.StagingReconcileTotal.WithLabelValues(pfmetrics.ResultValidationFailed).Inc()
+		return ctrl.Result{}, err
+	}
+
+	if err := status.UpdateStatus(ctx, r.Client, stagingObj, stagingDeepCopy); err != nil {
+		log.Error(err, "Unable to update Staging status")
 		return ctrl.Result{}, err
 	}
 

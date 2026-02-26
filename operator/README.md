@@ -321,7 +321,6 @@ exposes a `pipeline_forge_reconciliations_total` counter partitioned by `result`
 
 | Result | Description |
 |---|---|
-| `skipped` | Generation already processed |
 | `initialized` | First reconciliation of a new Staging resource |
 | `validation_failed` | Ingestion validation returned an error |
 | `requeued` | Happy path, requeued after 60s |

@@ -21,8 +21,8 @@ spec:
     # Namespace of the referenced Trigger CRD (optional; defaults to current namespace)
     namespace: triggers-ns
     # Mode can be 'reference' to use an existing Trigger resource,
-    # or 'bootstrap' to create and manage the resource automatically (future implementation)
-    mode: reference
+    # or 'bootstrap' to create and manage the resource automatically
+    mode: bootstrap
     # Type = trigger: the controller expects to monitor a custom Trigger CRD
     # (e.g., one watching GCS, Pub/Sub, BigQuery)
     type: trigger

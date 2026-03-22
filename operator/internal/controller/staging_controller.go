@@ -22,19 +22,15 @@ import (
 
 	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
 	pfmetrics "github.com/DanielBlei/pipeline-forge/operator/internal/metrics"
-	"github.com/DanielBlei/pipeline-forge/operator/internal/status"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-const (
-	stagingFinalizer    = "staging.core.pipeline-forge.io/finalizer"
-	defaultRequeueAfter = 60 * time.Second
-)
+const defaultRequeueAfter = 60 * time.Second
 
 // StagingReconciler reconciles a Staging object
 type StagingReconciler struct {
@@ -52,54 +48,34 @@ func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	log := logf.FromContext(ctx).WithValues("staging", req.NamespacedName)
 	log.Info("Reconciling Staging")
 
-	stagingObj := &corev1alpha1.Staging{}
-	if err := r.Get(ctx, req.NamespacedName, stagingObj); err != nil {
-		if errors.IsNotFound(err) {
-			log.V(1).Info("Staging object not found, stopping reconciliation")
-			return ctrl.Result{}, nil
-		}
-		log.Error(err, "Unable to retrieve Staging object")
+	stagingObj, err := r.fetchStaging(ctx, req.NamespacedName)
+	if stagingObj == nil || err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// Handle deletion first
 	if !stagingObj.DeletionTimestamp.IsZero() {
-		log.Info("Staging is being deleted")
-		// TODO: Add deletion logic (cleanup resources, remove finalizers)
-		return ctrl.Result{}, nil
+		return r.handleDeletion(ctx, stagingObj)
 	}
 
-	// Create deep copy  prior to object checks and updates
+	if !controllerutil.ContainsFinalizer(stagingObj, stagingFinalizer) {
+		return r.ensureFinalizer(ctx, stagingObj)
+	}
+
 	stagingDeepCopy := stagingObj.DeepCopy()
 
-	// Initialize status if needed (first time reconciliation)
-	if stagingObj.Status.Status == nil {
-		log.Info("New Staging object, initializing status")
-		stagingObj.Status.SetStagingStatus(corev1alpha1.ObjConditionInitiating)
+	if r.initializeStatus(stagingObj) {
 		pfmetrics.StagingReconcileTotal.WithLabelValues(pfmetrics.ResultInitialized).Inc()
 	}
 
-	// Update observed generation
-	stagingObj.Status.ObservedGeneration = stagingObj.Generation
-
-	// Check Ingestion (work in progress)
-	if err := r.validateIngestionAndUpdateStatus(ctx, stagingObj); err != nil {
+	if err := r.validateIngestion(ctx, stagingObj); err != nil {
 		log.Error(err, "Error checking ingestion")
-		if updateError := status.UpdateStatus(ctx, r.Client, stagingObj, stagingDeepCopy); updateError != nil {
-			log.Error(updateError, "Unable to update Staging status")
-			return ctrl.Result{}, updateError
-		}
 		pfmetrics.StagingReconcileTotal.WithLabelValues(pfmetrics.ResultValidationFailed).Inc()
-		return ctrl.Result{}, err
+		return r.patchStatusAndRequeue(ctx, stagingObj, stagingDeepCopy, err)
 	}
 
-	if err := status.UpdateStatus(ctx, r.Client, stagingObj, stagingDeepCopy); err != nil {
-		log.Error(err, "Unable to update Staging status")
-		return ctrl.Result{}, err
-	}
+	// TODO: watch ingestion, validate transformation and perform transformation
 
-	pfmetrics.StagingReconcileTotal.WithLabelValues(pfmetrics.ResultRequeued).Inc()
-	return ctrl.Result{RequeueAfter: defaultRequeueAfter}, nil
+	return r.patchStatusAndRequeue(ctx, stagingObj, stagingDeepCopy, nil)
 }
 
 // SetupWithManager sets up the controller with the Manager.

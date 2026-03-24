@@ -24,6 +24,7 @@ import (
 	corev1alpha1 "github.com/DanielBlei/pipeline-forge/operator/api/v1alpha1"
 	"github.com/DanielBlei/pipeline-forge/operator/internal/components"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -110,9 +111,9 @@ func (r *StagingReconciler) createResource(
 		}
 		return r.Create(ctx, cronJob)
 	case *batchv1.Job:
-		return fmt.Errorf("bootstrap mode for %s is not implemented", stagingObj.Spec.Ingest.Type)
+		return fmt.Errorf("bootstrap mode for %s is not supported", stagingObj.Spec.Ingest.Type)
 	case *corev1alpha1.Trigger:
-		return fmt.Errorf("bootstrap mode for %s is not implemented", stagingObj.Spec.Ingest.Type)
+		return fmt.Errorf("bootstrap mode for %s is not supported", stagingObj.Spec.Ingest.Type)
 	default:
 		return fmt.Errorf("bootstrap mode is not supported for %s", stagingObj.Spec.Ingest.Type)
 	}
@@ -161,7 +162,6 @@ func (r *StagingReconciler) validateIngestion(
 
 	validationError := r.resolveIngestResource(ctx, stagingObj)
 
-	stagingObj.Status.Ingest.LastCheckedTime = metav1.Time{Time: time.Now()}
 	if validationError != nil {
 		stagingObj.Status.Ingest.SetInternalStatus(corev1alpha1.ObjConditionFailed)
 		stagingObj.Status.Ingest.Message = validationError.Error()
@@ -170,4 +170,159 @@ func (r *StagingReconciler) validateIngestion(
 
 	stagingObj.Status.Ingest.SetInternalStatus(corev1alpha1.ObjConditionReady)
 	return nil
+}
+
+// observeIngestJobs dispatches to type-specific observation methods to track
+// the status of Jobs spawned by the ingest resource.
+// Skips observation if the poll interval has not elapsed since LastCheckedTime.
+// LastCheckedTime is updated only after a successful observation.
+func (r *StagingReconciler) observeIngestJobs(
+	ctx context.Context,
+	stagingObj *corev1alpha1.Staging,
+) error {
+	log := logf.FromContext(ctx)
+	pollInterval := stagingObj.IngestPollInterval()
+	if !stagingObj.Status.Ingest.LastCheckedTime.IsZero() &&
+		time.Since(stagingObj.Status.Ingest.LastCheckedTime.Time) < pollInterval {
+		log.V(1).Info("Poll interval not elapsed, skipping observation",
+			"lastChecked", stagingObj.Status.Ingest.LastCheckedTime.Time,
+			"interval", pollInterval,
+		)
+		return nil
+	}
+
+	log.Info("Observing ingest jobs",
+		"type", stagingObj.Spec.Ingest.Type,
+		"name", stagingObj.Spec.Ingest.Name,
+	)
+
+	var err error
+	switch stagingObj.Spec.Ingest.Type {
+	case corev1alpha1.IngestTypeCronjob:
+		err = r.observeCronJobJobs(ctx, stagingObj)
+	case corev1alpha1.IngestTypeJob:
+		err = fmt.Errorf("observer for %s is not supported", corev1alpha1.IngestTypeJob)
+	case corev1alpha1.IngestTypeTrigger:
+		err = fmt.Errorf("observer for %s is not supported", corev1alpha1.IngestTypeTrigger)
+	default:
+		err = fmt.Errorf("invalid obj type %s", stagingObj.Spec.Ingest.Type)
+	}
+	if err == nil {
+		stagingObj.Status.Ingest.LastCheckedTime = metav1.Time{Time: time.Now()}
+	}
+	return err
+}
+
+// observeCronJobJobs lists Jobs owned by the ingest CronJob and updates the ingest status
+// based on the latest Job's state.
+func (r *StagingReconciler) observeCronJobJobs(
+	ctx context.Context,
+	stagingObj *corev1alpha1.Staging,
+) error {
+	log := logf.FromContext(ctx)
+	namespace := stagingObj.IngestNamespace()
+
+	cronJob := &batchv1.CronJob{}
+	if err := r.Get(ctx, types.NamespacedName{
+		Name:      stagingObj.Spec.Ingest.Name,
+		Namespace: namespace,
+	}, cronJob); err != nil {
+		return fmt.Errorf("failed to get CronJob %s/%s: %w", namespace, stagingObj.Spec.Ingest.Name, err)
+	}
+
+	jobList := &batchv1.JobList{}
+	if err := r.List(ctx, jobList, client.InNamespace(namespace)); err != nil {
+		return fmt.Errorf("failed to list jobs in %s: %w", namespace, err)
+	}
+
+	latestJob := findLatestOwnedJob(jobList.Items, cronJob.UID)
+	if latestJob == nil {
+		log.V(1).Info("No jobs found for CronJob, waiting for first schedule", "cronjob", cronJob.Name)
+		stagingObj.Status.Ingest.SetInternalStatus(corev1alpha1.ObjConditionPending)
+		stagingObj.Status.Ingest.Message = fmt.Sprintf("Waiting for CronJob %s to schedule its first Job", cronJob.Name)
+		return nil
+	}
+
+	if latestJob.Name == stagingObj.Status.Ingest.LastRunJobName {
+		currentStatus := stagingObj.Status.Ingest.Status
+		if currentStatus != nil &&
+			(*currentStatus == corev1alpha1.ObjectConditionCompleted ||
+				*currentStatus == corev1alpha1.ObjConditionFailed) {
+			log.V(1).Info("Latest job unchanged, skipping", "job", latestJob.Name)
+			return nil
+		}
+	}
+	updateIngestStatusFromJob(stagingObj, latestJob)
+	return nil
+}
+
+// updateIngestStatusFromJob updates the ingest InternalStatus based on the given Job's status.
+// Counter increments are gated on LastRunJobName changing to ensure idempotency across re-reconciles.
+func updateIngestStatusFromJob(stagingObj *corev1alpha1.Staging, job *batchv1.Job) {
+	isNewJob := stagingObj.Status.Ingest.LastRunJobName != job.Name
+	stagingObj.Status.Ingest.LastRunJobName = job.Name
+
+	if job.Status.StartTime != nil {
+		stagingObj.Status.Ingest.LastAttemptTime = job.Status.StartTime
+	}
+
+	for _, cond := range job.Status.Conditions {
+		if cond.Status != corev1.ConditionTrue {
+			continue
+		}
+
+		switch cond.Type {
+		case batchv1.JobComplete:
+			stagingObj.Status.Ingest.SetInternalStatus(corev1alpha1.ObjectConditionCompleted)
+			stagingObj.Status.Ingest.Message = fmt.Sprintf("Job %s completed", job.Name)
+			if job.Status.CompletionTime != nil {
+				stagingObj.Status.Ingest.LastCompletedTime = *job.Status.CompletionTime
+			}
+			if isNewJob {
+				stagingObj.Status.Ingest.SuccessfulAttempts++
+			}
+			return
+
+		case batchv1.JobFailed:
+			stagingObj.Status.Ingest.SetInternalStatus(corev1alpha1.ObjConditionFailed)
+			stagingObj.Status.Ingest.Message = fmt.Sprintf("Job %s failed: %s", job.Name, cond.Message)
+			stagingObj.Status.Ingest.LastFailureTime = &cond.LastTransitionTime
+			if isNewJob {
+				stagingObj.Status.Ingest.FailedAttempts++
+			}
+			return
+		}
+	}
+
+	if job.Status.Active > 0 {
+		stagingObj.Status.Ingest.SetInternalStatus(corev1alpha1.ObjConditionRunning)
+		stagingObj.Status.Ingest.Message = fmt.Sprintf("Job %s is running", job.Name)
+	} else {
+		stagingObj.Status.Ingest.SetInternalStatus(corev1alpha1.ObjConditionPending)
+		stagingObj.Status.Ingest.Message = fmt.Sprintf("Job %s is pending", job.Name)
+	}
+}
+
+// findLatestOwnedJob returns the most recently created Job owned by the given controller UID,
+// or nil if no matching Jobs exist. Single linear scan over the slice.
+func findLatestOwnedJob(jobs []batchv1.Job, ownerUID types.UID) *batchv1.Job {
+	var latest *batchv1.Job
+	for i := range jobs {
+		if !isOwnedByController(&jobs[i], ownerUID) {
+			continue
+		}
+		if latest == nil || jobs[i].CreationTimestamp.After(latest.CreationTimestamp.Time) {
+			latest = &jobs[i]
+		}
+	}
+	return latest
+}
+
+func isOwnedByController(job *batchv1.Job, uid types.UID) bool {
+	for _, ref := range job.OwnerReferences {
+		if ref.UID == uid && ref.Controller != nil && *ref.Controller {
+			return true
+		}
+	}
+	return false
 }

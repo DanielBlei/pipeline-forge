@@ -75,7 +75,7 @@ var _ = Describe("Status Update", func() {
 			objDeepCopy := resource.DeepCopy()
 
 			By("Updating the status")
-			resource.Status.SetTriggerStatus(v1alpha1.ObjectStatusCompleted)
+			resource.Status.SetTriggerStatus(v1alpha1.ObjectConditionCompleted)
 
 			By("Calling UpdateStatus function")
 			err = UpdateStatus(ctx, k8sClient, resource, objDeepCopy)
@@ -85,7 +85,7 @@ var _ = Describe("Status Update", func() {
 			updatedObj := &v1alpha1.Trigger{}
 			err = k8sClient.Get(ctx, typeNamespacedName, updatedObj)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(updatedObj.Status.Status).To(HaveValue(Equal(v1alpha1.ObjectStatusCompleted)))
+			Expect(updatedObj.Status.Status).To(HaveValue(Equal(v1alpha1.ObjectConditionCompleted)))
 		})
 	})
 })

@@ -45,11 +45,11 @@ const (
 type ObjCondition string
 
 const (
-	ObjectStatusCompleted  ObjCondition = "Completed"
-	ObjConditionFailed     ObjCondition = "Failed"
-	ObjConditionPending    ObjCondition = "Pending"
-	ObjConditionRunning    ObjCondition = "Running"
-	ObjConditionSuspended  ObjCondition = "Suspended"
-	ObjConditionReady      ObjCondition = "Ready"
-	ObjConditionInitiating ObjCondition = "Initiating"
+	ObjectConditionCompleted ObjCondition = "Completed"
+	ObjConditionFailed       ObjCondition = "Failed"
+	ObjConditionPending      ObjCondition = "Pending"
+	ObjConditionRunning      ObjCondition = "Running"
+	ObjConditionSuspended    ObjCondition = "Suspended"
+	ObjConditionReady        ObjCondition = "Ready"
+	ObjConditionInitiating   ObjCondition = "Initiating"
 )

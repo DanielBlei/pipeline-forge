@@ -79,7 +79,7 @@ func CreateCronJob(
 	}
 }
 
-// NewJob creates a Kubernetes Job definition with the given parameters.
+// CreateJob creates a Kubernetes Job definition with the given parameters.
 func CreateJob(
 	name string,
 	namespace string,

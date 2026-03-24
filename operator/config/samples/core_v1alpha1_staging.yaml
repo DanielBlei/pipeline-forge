@@ -1,7 +1,7 @@
 apiVersion: core.pipeline-forge.io/v1alpha1
 kind: Staging
 metadata:
-  name: staging-reference
+  name: staging-sample
   namespace: staging-sample
   labels:
     app.kubernetes.io/name: pipeline-forge
@@ -15,7 +15,7 @@ spec:
 
   ingest:
     # The controller validates by name the resource exists on each reconcile.
-    name: ingest-user-events
+    name: ingest-sample
     # Namespace of the referenced resource. Defaults to the Staging namespace if omitted.
     namespace: staging-sample
     # Reference mode: the CronJob must already exist in the cluster.
@@ -44,7 +44,7 @@ spec:
     suspend: false
 
   transform:
-    name: user-events-transform
+    name: transform-sample
     # BigQuery project or dbt project name
     project: analytics
     # Environment target (e.g., dev, staging, prod)

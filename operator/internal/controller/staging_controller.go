@@ -30,7 +30,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-const defaultRequeueAfter = 60 * time.Second
+const (
+	stagingFinalizer    = "staging.core.pipeline-forge.io/finalizer"
+	defaultRequeueAfter = 60 * time.Second
+)
 
 // StagingReconciler reconciles a Staging object
 type StagingReconciler struct {
@@ -73,7 +76,12 @@ func (r *StagingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return r.patchStatusAndRequeue(ctx, stagingObj, stagingDeepCopy, err)
 	}
 
-	// TODO: watch ingestion, validate transformation and perform transformation
+	if err := r.observeIngestJobs(ctx, stagingObj); err != nil {
+		log.Error(err, "Error observing ingest jobs")
+		return r.patchStatusAndRequeue(ctx, stagingObj, stagingDeepCopy, err)
+	}
+
+	// TODO: validate transformation and perform transformation
 
 	return r.patchStatusAndRequeue(ctx, stagingObj, stagingDeepCopy, nil)
 }

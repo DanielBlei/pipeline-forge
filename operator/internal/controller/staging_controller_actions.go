@@ -30,8 +30,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const stagingFinalizer = "staging.core.pipeline-forge.io/finalizer"
-
 // fetchStaging retrieves the Staging object from the cluster.
 // Returns (nil, nil) when the object has been deleted.
 func (r *StagingReconciler) fetchStaging(

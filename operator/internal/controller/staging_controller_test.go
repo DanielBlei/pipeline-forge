@@ -153,7 +153,8 @@ var _ = Describe("Staging Controller", func() {
 			updated := &corev1alpha1.Staging{}
 			Expect(k8sClient.Get(ctx, typeNamespacedName, updated)).To(Succeed())
 			Expect(updated.Status.Ingest.Status).NotTo(BeNil())
-			Expect(*updated.Status.Ingest.Status).To(Equal(corev1alpha1.ObjConditionReady))
+			Expect(*updated.Status.Ingest.Status).To(Equal(corev1alpha1.ObjConditionPending),
+				"no Jobs exist yet, so observation sets Pending")
 		})
 
 		It("should remove finalizer on deletion", func() {

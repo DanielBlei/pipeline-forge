@@ -246,6 +246,43 @@ var _ = Describe("Staging Controller", func() {
 			}
 		})
 
+		It("should update bootstrapped CronJob when spec drifts", func() {
+			controllerReconciler := &StagingReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			By("First reconcile adds finalizer")
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: bootstrapNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Second reconcile creates CronJob")
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: bootstrapNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Mutating the CronJob image to simulate drift")
+			cronJob := &batchv1.CronJob{}
+			Expect(k8sClient.Get(ctx, bootstrapCronJobNamespacedName, cronJob)).To(Succeed())
+			cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image = "stale-image:old"
+			Expect(k8sClient.Update(ctx, cronJob)).To(Succeed())
+
+			By("Third reconcile corrects the drift")
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: bootstrapNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying the CronJob image was restored to desired state")
+			updated := &batchv1.CronJob{}
+			Expect(k8sClient.Get(ctx, bootstrapCronJobNamespacedName, updated)).To(Succeed())
+			Expect(updated.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image).
+				To(Equal("busybox:latest"))
+		})
+
 		It("should set owner reference on bootstrapped CronJob", func() {
 			controllerReconciler := &StagingReconciler{
 				Client: k8sClient,

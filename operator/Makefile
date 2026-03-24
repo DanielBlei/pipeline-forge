@@ -11,8 +11,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-# CONTAINER_TOOL defines the container tool to be used for building images.
-CONTAINER_TOOL ?= docker
+# CONTAINER_TOOL auto-detects the container tool to be used for building images
+CONTAINER_TOOL ?= $(shell (podman ps >/dev/null 2>&1 && echo podman) || (docker ps >/dev/null 2>&1 && echo docker))
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 SHELL = /usr/bin/env bash -o pipefail
@@ -133,22 +133,22 @@ build: manifests generate fmt vet ## Build manager binary.
 run: manifests generate fmt vet check-local-context ## Run a controller from your host.
 	go run ./cmd/main.go
 
-.PHONY: docker-build
-docker-build: ## Build docker image with the manager.
+.PHONY: image-build
+image-build: ## Build the manager image using the detected container runtime.
 	$(CONTAINER_TOOL) build -t ${IMG} .
-	@echo ""
-	@echo "  To load this image into a Kind cluster, run:"
-	@echo "    kind load docker-image ${IMG} --name $(KIND_CLUSTER_SANDBOX)"
-	@echo ""
 
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
+.PHONY: image-load
+image-load: ## Load the manager image into the Kind e2e cluster (compatible with Docker and Podman).
+	$(CONTAINER_TOOL) save $(IMG) | kind load image-archive /dev/stdin --name $(KIND_CLUSTER)
+
+.PHONY: image-push
+image-push: ## Push the manager image using the detected container runtime.
 	$(CONTAINER_TOOL) push ${IMG}
 
 # Cross-platform build configuration
 PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
-.PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for the manager for cross-platform support
+.PHONY: image-buildx
+image-buildx: ## Build and push the manager image for cross-platform support.
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name pipeline-forge-builder

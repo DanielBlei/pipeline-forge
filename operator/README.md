@@ -54,7 +54,7 @@ Triggers support advanced features including:
 1. **Build and push the operator image:**
 
 ```sh
-make docker-build docker-push IMG=<your-registry>/pipeline-forge-operator:tag
+make image-build image-push IMG=<your-registry>/pipeline-forge-operator:tag
 ```
 
 2. **Install the CRDs:**

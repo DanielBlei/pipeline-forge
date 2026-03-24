@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -63,60 +64,59 @@ func (r *StagingReconciler) checkResourceReference(
 	return nil
 }
 
-// bootstrapResource creates the ingest resource if it does not already exist.
-// TODO: move to a createOrUpdate resource approach to enforce desired vs actual state
-func (r *StagingReconciler) bootstrapResource(
+// createOrUpdateResource ensures the bootstrap ingest resource matches the desired spec
+func (r *StagingReconciler) createOrUpdateResource(
 	ctx context.Context,
 	stagingObj *corev1alpha1.Staging,
 	obj client.Object,
 ) error {
-	namespacedName := types.NamespacedName{
-		Name:      stagingObj.Spec.Ingest.Name,
-		Namespace: stagingObj.IngestNamespace(),
-	}
+	log := logf.FromContext(ctx)
 
-	if err := r.Get(ctx, namespacedName, obj); err != nil {
-		if !errors.IsNotFound(err) {
-			return fmt.Errorf(
-				"failed to check resource %s/%s: %w",
-				namespacedName.Namespace,
-				namespacedName.Name,
-				err,
+	// Pre-populate identity fields so CreateOrUpdate can issue the GET.
+	obj.SetName(stagingObj.Spec.Ingest.Name)
+	obj.SetNamespace(stagingObj.IngestNamespace())
+
+	mutateFn := func() error {
+		switch typed := obj.(type) {
+		case *batchv1.CronJob:
+			desired := components.CreateCronJob(
+				stagingObj.Spec.Ingest.Name,
+				stagingObj.IngestNamespace(),
+				stagingObj.Spec.Ingest.Schedule,
+				stagingObj.Spec.Ingest.Image,
+				stagingObj.Spec.Ingest.Command,
+				stagingObj.Spec.Ingest.Resources,
 			)
+			if err := ctrl.SetControllerReference(stagingObj, typed, r.Scheme); err != nil {
+				return fmt.Errorf("failed to set controller reference on CronJob: %w", err)
+			}
+			typed.Spec.Schedule = desired.Spec.Schedule
+			typed.Spec.JobTemplate = desired.Spec.JobTemplate
+			return nil
+		case *batchv1.Job:
+			return fmt.Errorf("bootstrap mode for %s is not supported", stagingObj.Spec.Ingest.Type)
+		case *corev1alpha1.Trigger:
+			return fmt.Errorf("bootstrap mode for %s is not supported", stagingObj.Spec.Ingest.Type)
+		default:
+			return fmt.Errorf("bootstrap mode is not supported for %s", stagingObj.Spec.Ingest.Type)
 		}
-		return r.createResource(ctx, stagingObj, obj)
 	}
-	// Resource already exists, nothing to do.
-	return nil
-}
 
-// createResource creates the appropriate Kubernetes resource for bootstrap mode.
-func (r *StagingReconciler) createResource(
-	ctx context.Context,
-	stagingObj *corev1alpha1.Staging,
-	obj client.Object,
-) error {
-	switch obj.(type) {
-	case *batchv1.CronJob:
-		cronJob := components.CreateCronJob(
-			stagingObj.Spec.Ingest.Name,
-			stagingObj.IngestNamespace(),
-			stagingObj.Spec.Ingest.Schedule,
-			stagingObj.Spec.Ingest.Image,
-			stagingObj.Spec.Ingest.Command,
-			stagingObj.Spec.Ingest.Resources,
+	result, err := controllerutil.CreateOrUpdate(ctx, r.Client, obj, mutateFn)
+	if err != nil {
+		return fmt.Errorf(
+			"failed to createOrUpdate bootstrap resource %s/%s: %w",
+			obj.GetNamespace(), obj.GetName(), err,
 		)
-		if err := ctrl.SetControllerReference(stagingObj, cronJob, r.Scheme); err != nil {
-			return fmt.Errorf("failed to set controller reference on CronJob: %w", err)
-		}
-		return r.Create(ctx, cronJob)
-	case *batchv1.Job:
-		return fmt.Errorf("bootstrap mode for %s is not supported", stagingObj.Spec.Ingest.Type)
-	case *corev1alpha1.Trigger:
-		return fmt.Errorf("bootstrap mode for %s is not supported", stagingObj.Spec.Ingest.Type)
-	default:
-		return fmt.Errorf("bootstrap mode is not supported for %s", stagingObj.Spec.Ingest.Type)
 	}
+
+	log.Info("Bootstrap resource reconciled",
+		"operation", result,
+		"name", obj.GetName(),
+		"namespace", obj.GetNamespace(),
+		"type", stagingObj.Spec.Ingest.Type,
+	)
+	return nil
 }
 
 // resolveIngestResource dispatches to the correct check or bootstrap handler based on mode and type.
@@ -143,7 +143,7 @@ func (r *StagingReconciler) resolveIngestResource(
 	case corev1alpha1.IngestModeReference:
 		return r.checkResourceReference(ctx, stagingObj, res.obj)
 	case corev1alpha1.IngestModeBootstrap:
-		return r.bootstrapResource(ctx, stagingObj, res.obj)
+		return r.createOrUpdateResource(ctx, stagingObj, res.obj)
 	default:
 		return fmt.Errorf("invalid ingest mode: %s", stagingObj.Spec.Ingest.Mode)
 	}
